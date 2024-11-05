@@ -3,19 +3,20 @@ import sys
 import RPi.GPIO as GPIO
 from HX711 import HX711
 
-'''
-About READ_MODE
-----------------
+# Pins connected on expansion header
+DOUT = 5
+SCK = 6
 
-If set to "interrupt based" (--interrupt_based), sets the class to use the "GPIO.add_event_detect"
-to know when to poll and execute the passed callback.
 
-If set to "polling based" (--polling_based), sets the example polls a new value from the HX711 using
-the readRawBytes() method, which will wait until the HX711 is ready.
-'''
+# Sets the class to use the "GPIO.add_event_detect" to know when to poll and execute the passed callback
 READ_MODE_INTERRUPT_BASED = "--interrupt-based"
+# Sets the example polls a new value from the HX711 using the readRawBytes() method, 
+# which will wait until the HX711 is ready.
 READ_MODE_POLLING_BASED = "--polling-based"
+
+# Default value
 READ_MODE = READ_MODE_INTERRUPT_BASED
+
 
 if len(sys.argv) > 1 and sys.argv[1] == READ_MODE_POLLING_BASED:
     READ_MODE = READ_MODE_POLLING_BASED
@@ -24,7 +25,7 @@ else:
     print("[INFO] Read mode is 'interrupt based'.")
     
 
-hx = HX711(5, 6)
+hx = HX711(DOUT, SCK)
 
 def printRawBytes(rawBytes):
     print(f"[RAW BYTES] {rawBytes}")
