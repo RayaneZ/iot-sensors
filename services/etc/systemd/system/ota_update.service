@@ -1,0 +1,10 @@
+[Unit]
+Description=OTA Update Service for Jetson Nano
+After=network.target
+
+[Service]
+ExecStart=/opt/update_firmware.sh %i
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
