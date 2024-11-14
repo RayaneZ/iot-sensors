@@ -11,8 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      THINGSBOARD_URL: $THINGSBOARD_URL
-      THINGSBOARD_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+      THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
+      TB_USERNAME: ${{ secrets.TB_USERNAME }}
+      TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
 
     steps:
       - name: Checkout code
@@ -36,12 +37,13 @@ jobs:
         run: |
           response=$(curl -s -X POST "$THINGSBOARD_URL/api/auth/login" \
             -H "Content-Type: application/json" \
-            -d '{"username": "'"${{ secrets.TB_USERNAME }}"'", "password": "'"${{ secrets.TB_PASSWORD }}"'"}')
-          echo "::set-output name=token::$(echo $response | jq -r '.token')"
-      
+            -d '{"username": "'"$TB_USERNAME"'", "password": "'"$TB_PASSWORD"'"}')
+          token=$(echo "$response" | jq -r '.token')
+          echo "TB_TOKEN=$token" >> $GITHUB_ENV
+
       - name: Deploy OTA Package to ThingsBoard
         env:
-          TB_TOKEN: ${{ steps.tb_login.outputs.token }}
+          TB_TOKEN: ${{ env.TB_TOKEN }}
         run: |
           # Envoyer le package OTA à ThingsBoard
           response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$THINGSBOARD_URL/api/otaPackage" \
@@ -52,7 +54,7 @@ jobs:
                   "type": "FIRMWARE",
                   "title": "Python et TRT Update",
                   "version": "v1.0.0",
-                  "url": "'$TB_URL/api/otaPackage/<OTA_PACKAGE_ID>/content'"
+                  "url": "'$THINGSBOARD_URL/api/otaPackage/<OTA_PACKAGE_ID>/content'"
                 }')
 
           if [[ "$response" -ne 200 ]]; then
@@ -62,11 +64,10 @@ jobs:
 
       - name: Upload OTA Content
         env:
-          TB_URL: $THINGSBOARD_URL
-          TB_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+          TB_TOKEN: ${{ env.TB_TOKEN }}
         run: |
           # Télécharger le contenu OTA sur ThingsBoard
-          curl -X POST "$TB_URL/api/otaPackage/<OTA_PACKAGE_ID>/content" \
+          curl -X POST "$THINGSBOARD_URL/api/otaPackage/<OTA_PACKAGE_ID>/content" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
