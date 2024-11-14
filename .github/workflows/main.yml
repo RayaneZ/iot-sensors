@@ -41,33 +41,29 @@ jobs:
           token=$(echo "$response" | jq -r '.token')
           echo "TB_TOKEN=$token" >> $GITHUB_ENV
 
-      - name: Deploy OTA Package to ThingsBoard
+      - name: Create OTA Package in ThingsBoard
         env:
           TB_TOKEN: ${{ env.TB_TOKEN }}
         run: |
-          # Envoyer le package OTA à ThingsBoard
-          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$THINGSBOARD_URL/api/otaPackage" \
+          response=$(curl -s -X POST "$THINGSBOARD_URL/api/otaPackage" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-                  "deviceProfileId": "<DEVICE_PROFILE_ID>",
+                  "deviceProfileId": "68c1c3f0-9905-11ef-af50-911365b0425f",
                   "type": "FIRMWARE",
                   "title": "Python et TRT Update",
-                  "version": "v1.0.0",
-                  "url": "'$THINGSBOARD_URL/api/otaPackage/<OTA_PACKAGE_ID>/content'"
+                  "version": "v1.0.0"
                 }')
-
-          if [[ "$response" -ne 200 ]]; then
-            echo "Erreur lors du déploiement du package OTA. Code de réponse: $response"
-            exit 1
-          fi
+          ota_package_id=$(echo "$response" | jq -r '.id.id')
+          echo "OTA_PACKAGE_ID=$ota_package_id" >> $GITHUB_ENV
 
       - name: Upload OTA Content
         env:
           TB_TOKEN: ${{ env.TB_TOKEN }}
+          OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
         run: |
           # Télécharger le contenu OTA sur ThingsBoard
-          curl -X POST "$THINGSBOARD_URL/api/otaPackage/<OTA_PACKAGE_ID>/content" \
+          curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID/content" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
