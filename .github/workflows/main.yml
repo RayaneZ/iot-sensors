@@ -69,7 +69,7 @@ jobs:
           OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
         run: |
           # Télécharger le contenu OTA sur ThingsBoard
-          curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID/content" \
+          curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID?checksumAlgorithm=SHA256" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
