@@ -53,6 +53,7 @@ jobs:
                   "version": "v1.0.0"
                 }')
           ota_package_id=$(echo "$response" | jq -r '.id.id')
+          echo $response
           echo "OTA_PACKAGE_ID=$ota_package_id" >> $GITHUB_ENV
 
       - name: Upload OTA Content
