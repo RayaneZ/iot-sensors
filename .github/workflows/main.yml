@@ -14,7 +14,6 @@ jobs:
       THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
       TB_USERNAME: ${{ secrets.TB_USERNAME }}
       TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
-      PROFILE_DEVICE_ID: "68c1c3f0-9905-11ef-af50-911365b0425f"
       
     steps:
       - name: Checkout code
@@ -53,7 +52,7 @@ jobs:
                   "type":"SOFTWARE",
                   "deviceProfileId":{
                         "entityType":"DEVICE_PROFILE",
-                        "id":"$PROFILE_DEVICE_ID"
+                        "id":"68c1c3f0-9905-11ef-af50-911365b0425f"
                   },
                   "isURL":false,
                   "additionalInfo":{
