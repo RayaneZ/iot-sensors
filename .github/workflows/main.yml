@@ -47,10 +47,18 @@ jobs:
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-                  "deviceProfileId": "$PROFILE_DEVICE_ID",
-                  "type": "FIRMWARE",
-                  "title": "Python et TRT Update",
-                  "version": "v1.0.0"
+                  "title":"Python et TRT Update",
+                  "version":"1.0a",
+                  "tag":"test-cicd",
+                  "type":"SOFTWARE",
+                  "deviceProfileId":{
+                        "entityType":"DEVICE_PROFILE",
+                        "id":"$PROFILE_DEVICE_ID"
+                  },
+                  "isURL":false,
+                  "additionalInfo":{
+                    "description":"Test for uploads"
+                  }
                 }')
           ota_package_id=$(echo "$response" | jq -r '.id.id')
           echo $response
