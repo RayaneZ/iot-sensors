@@ -28,10 +28,20 @@ jobs:
           name: ota_package
           path: ota_package.zip
 
+      - name: Get ThingsBoard Token
+        id: tb_login
+        run: |
+          response=$(curl -s -X POST "$THINGSBOARD_URL/api/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"username": "'"${{ secrets.TB_USERNAME }}"'", "password": "'"${{ secrets.TB_PASSWORD }}"'"}')
+          echo "::set-output name=token::$(echo $response | jq -r '.token')"
+        env:
+          THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
+      
       - name: Deploy OTA Package to ThingsBoard
         env:
           TB_URL: ${{ secrets.THINGSBOARD_URL }}
-          TB_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+          TB_TOKEN: ${{ steps.tb_login.outputs.token }}
         run: |
           # Envoyer le package OTA à ThingsBoard
           response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$TB_URL/api/otaPackage" \
