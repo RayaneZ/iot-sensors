@@ -1,0 +1,62 @@
+name: Deploy OTA Package to ThingsBoard
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
+      THINGSBOARD_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Package application for OTA
+        run: |
+          zip -r ota_package.zip .  # Créez un fichier ZIP contenant le code et les dépendances
+
+      - name: Upload OTA package artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ota_package
+          path: ota_package.zip
+
+      - name: Deploy OTA Package to ThingsBoard
+        env:
+          TB_URL: ${{ secrets.THINGSBOARD_URL }}
+          TB_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+        run: |
+          # Envoyer le package OTA à ThingsBoard
+          response=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$TB_URL/api/otaPackage" \
+            -H "X-Authorization: Bearer $TB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "deviceProfileId": "<DEVICE_PROFILE_ID>",
+                  "type": "FIRMWARE",
+                  "title": "Python et TRT Update",
+                  "version": "v1.0.0",
+                  "url": "'$TB_URL/api/otaPackage/<OTA_PACKAGE_ID>/content'"
+                }')
+
+          if [[ "$response" -ne 200 ]]; then
+            echo "Erreur lors du déploiement du package OTA. Code de réponse: $response"
+            exit 1
+          fi
+
+      - name: Upload OTA Content
+        env:
+          TB_URL: ${{ secrets.THINGSBOARD_URL }}
+          TB_TOKEN: ${{ secrets.THINGSBOARD_TOKEN }}
+        run: |
+          # Télécharger le contenu OTA sur ThingsBoard
+          curl -X POST "$TB_URL/api/otaPackage/<OTA_PACKAGE_ID>/content" \
+            -H "X-Authorization: Bearer $TB_TOKEN" \
+            -F "file=@ota_package.zip" \
+            -H "Content-Type: multipart/form-data"
