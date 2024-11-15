@@ -28,7 +28,7 @@ jobs:
 
       - name: Package application for OTA
         run: |
-          zip -r ota_package.zip services/
+          zip -r ota_package.zip src/*
 
       - name: Upload OTA package artifact
         uses: actions/upload-artifact@v3

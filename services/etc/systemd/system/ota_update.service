@@ -3,7 +3,7 @@ Description=OTA Update Service for Jetson Nano
 After=network.target
 
 [Service]
-ExecStart=/opt/update_firmware.sh %i
+ExecStart=/usr/bin/python3 /opt/updater.py
 Restart=on-failure
 
 [Install]
