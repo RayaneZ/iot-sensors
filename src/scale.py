@@ -1,111 +1,134 @@
 import time
 import sys
+import threading
+import os
 import RPi.GPIO as GPIO
-from HX711 import HX711
+from flask import Flask, jsonify, request
+from libs.HX711 import HX711
+from dotenv import load_dotenv
 
-# Pins connected on expansion header
-DOUT = 5
-SCK = 6
+load_dotenv()
 
+# Configuration des broches GPIO
+DOUT = int(os.getenv('DOUT'))
+SCK = int(os.getenv('SCK'))
+SCALE_MODULE_PORT = int(os.getenv('SCALE_MODULE_PORT'))
 
-# Sets the class to use the "GPIO.add_event_detect" to know when to poll and execute the passed callback
-READ_MODE_INTERRUPT_BASED = "--interrupt-based"
-# Sets the example polls a new value from the HX711 using the readRawBytes() method, 
-# which will wait until the HX711 is ready.
-READ_MODE_POLLING_BASED = "--polling-based"
-
-# Default value
+# Modes de lecture
+READ_MODE_INTERRUPT_BASED = "interrupt-based"
+READ_MODE_POLLING_BASED = "polling-based"
 READ_MODE = READ_MODE_INTERRUPT_BASED
 
+# Flask app
+app = Flask(__name__)
 
-if len(sys.argv) > 1 and sys.argv[1] == READ_MODE_POLLING_BASED:
-    READ_MODE = READ_MODE_POLLING_BASED
-    print("[INFO] Read mode is 'polling based'.")
-else:
-    print("[INFO] Read mode is 'interrupt based'.")
-    
-
+# HX711 instance
 hx = HX711(DOUT, SCK)
 
-def printRawBytes(rawBytes):
-    print(f"[RAW BYTES] {rawBytes}")
+# Variables globales
+referenceUnit = 114
+is_running = False  # Indicate if polling mode is active
+polling_thread = None
 
-def printLong(rawBytes):
-    print(f"[LONG] {hx.rawBytesToLong(rawBytes)}")
 
-def printLongWithOffset(rawBytes):
-    print(f"[LONG WITH OFFSET] {hx.rawBytesToLongWithOffset(rawBytes)}")
+def setup_hx711():
+    """
+    Configure le capteur HX711.
+    """
+    global hx
+    hx.setReadingFormat("MSB", "MSB")
+    hx.autosetOffset()
+    offsetValue = hx.getOffset()
+    print(f"[INFO] Offset automatique défini : {offsetValue}")
+    hx.setReferenceUnit(referenceUnit)
+    print(f"[INFO] Unité de référence définie : {referenceUnit}")
 
-def printWeight(rawBytes):
-    print(f"[WEIGHT] {hx.rawBytesToWeight(rawBytes)} gr")
 
 def printAll(rawBytes):
+    """
+    Callback pour afficher les données en mode interrupt.
+    """
     longValue = hx.rawBytesToLong(rawBytes)
     longWithOffsetValue = hx.rawBytesToLongWithOffset(rawBytes)
     weightValue = hx.rawBytesToWeight(rawBytes)
     print(f"[INFO] INTERRUPT_BASED | longValue: {longValue} | longWithOffsetValue: {longWithOffsetValue} | weight (grams): {weightValue}")
 
-def getRawBytesAndPrintAll():
-    rawBytes = hx.getRawBytes()
-    longValue = hx.rawBytesToLong(rawBytes)
-    longWithOffsetValue = hx.rawBytesToLongWithOffset(rawBytes)
-    weightValue = hx.rawBytesToWeight(rawBytes)
-    print(f"[INFO] POLLING_BASED | longValue: {longValue} | longWithOffsetValue: {longWithOffsetValue} | weight (grams): {weightValue}")
 
-'''
-About the reading format.
-----------------
-I've found out that, for some reason, the order of the bytes is not always the same between versions of python,
-and the hx711 itself. I still need to figure out why.
-
-If you're experiencing super random values, switch these values between `MSB` and `LSB` until you get more stable values.
-There is some code below to debug and log the order of the bits and the bytes.
-
-The first parameter is the order in which the bytes are used to build the "long" value. The second paramter is
-the order of the bits inside each byte. According to the HX711 Datasheet, the second parameter is MSB so you
-shouldn't need to modify it.
-'''
-hx.setReadingFormat("MSB", "MSB")
-
-print("[INFO] Automatically setting the offset.")
-hx.autosetOffset()
-offsetValue = hx.getOffset()
-print(f"[INFO] Finished automatically setting the offset. The new value is '{offsetValue}'.")
-
-print("[INFO] You can add weight now!")
-
-'''
-# HOW TO CALCULATE THE REFFERENCE UNIT
-1. Set the reference unit to 1 and make sure the offset value is set.
-2. Load you sensor with 1kg or with anything you know exactly how much it weights.
-3. Write down the 'long' value you're getting. Make sure you're getting somewhat consistent values.
-    - This values might be in the order of millions, varying by hundreds or thousands and it's ok.
-4. To get the wright in grams, calculate the reference unit using the following formula:
-        
-    referenceUnit = longValueWithOffset / 1000
-        
-In my case, the longValueWithOffset was around 114000 so my reference unit is 114,
-because if I used the 114000, I'd be getting milligrams instead of grams.
-'''
-
-referenceUnit = 114
-print(f"[INFO] Setting the 'referenceUnit' at {referenceUnit}.")
-hx.setReferenceUnit(referenceUnit)
-print(f"[INFO] Finished setting the 'referenceUnit' at {referenceUnit}.")
-
-if READ_MODE == READ_MODE_INTERRUPT_BASED:
-    print("[INFO] Enabling the callback.")
-    hx.enableReadyCallback(printAll)
-    print("[INFO] Finished enabling the callback.")
+def polling_mode():
+    """
+    Exécute le mode polling.
+    """
+    global is_running
+    while is_running:
+        try:
+            rawBytes = hx.getRawBytes()
+            longValue = hx.rawBytesToLong(rawBytes)
+            longWithOffsetValue = hx.rawBytesToLongWithOffset(rawBytes)
+            weightValue = hx.rawBytesToWeight(rawBytes)
+            print(f"[INFO] POLLING_BASED | longValue: {longValue} | longWithOffsetValue: {longWithOffsetValue} | weight (grams): {weightValue}")
+            time.sleep(0.1)  # Réduire la fréquence si nécessaire
+        except Exception as e:
+            print(f"[ERROR] Polling error: {e}")
 
 
-while True:
+@app.route("/start", methods=["POST"])
+def start_polling():
+    """
+    Démarre le mode polling.
+    """
+    global is_running, polling_thread
+
+    if is_running:
+        return jsonify({"status": "error", "message": "Polling is already running"}), 400
+
+    is_running = True
+    polling_thread = threading.Thread(target=polling_mode)
+    polling_thread.start()
+    return jsonify({"status": "success", "message": "Polling started"})
+
+
+@app.route("/stop", methods=["POST"])
+def stop_polling():
+    """
+    Arrête le mode polling.
+    """
+    global is_running
+
+    if not is_running:
+        return jsonify({"status": "error", "message": "Polling is not running"}), 400
+
+    is_running = False
+    polling_thread.join()
+    return jsonify({"status": "success", "message": "Polling stopped"})
+
+
+@app.route("/weight", methods=["GET"])
+def get_weight():
+    """
+    Récupère le poids actuel.
+    """
     try:
-        if READ_MODE == READ_MODE_POLLING_BASED:
-            getRawBytesAndPrintAll()
-            
-    except (KeyboardInterrupt, SystemExit):
+        rawBytes = hx.getRawBytes()
+        weightValue = hx.rawBytesToWeight(rawBytes)
+        return jsonify({"status": "success", "weight": weightValue})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+if __name__ == "__main__":
+    # Configure le capteur au démarrage
+    setup_hx711()
+
+    # Activer le mode interrupt si configuré
+    if READ_MODE == READ_MODE_INTERRUPT_BASED:
+        print("[INFO] Activation du mode 'interrupt-based'")
+        hx.enableReadyCallback(printAll)
+
+    # Démarrage du serveur Flask
+    try:
+        print("[INFO] Démarrage du microservice")
+        app.run(host="0.0.0.0", port=SCALE_MODULE_PORT, debug=False)
+    except KeyboardInterrupt:
         GPIO.cleanup()
-        print("[INFO] 'KeyboardInterrupt Exception' detected. Cleaning and exiting...")
+        print("[INFO] Arrêt du microservice et nettoyage des GPIO.")
         sys.exit()
-        
