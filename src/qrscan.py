@@ -8,11 +8,11 @@ import time
 import cv2
 import os
 import subprocess
+import json
 
+# Charger les variables d'environnement
 load_dotenv()
-QRCODE_CONNECTION_MODULE_PORT = int(os.getenv('QRCODE_CONNECTION_MODULE_PORT'))
-
-
+QRCODE_CONNECTION_MODULE_PORT = int(os.getenv('QRCODE_CONNECTION_MODULE_PORT', 5000))  # Port par défaut: 5000
 
 app = Flask(__name__)
 vs = None  # Initialisation du flux vidéo global
@@ -30,12 +30,41 @@ def is_connected():
         return False
 
 
-def scan_qr_code():
+def connect_to_wifi_ionis(username, password):
     """
-    Active la caméra pour lire les QR codes en mode hors ligne.
+    Configure et connecte la Jetson Nano au réseau IONIS (Protected EAP - PEAP).
+    """
+    try:
+        # Crée ou met à jour le fichier de configuration wpa_supplicant
+        config = f"""
+        network={{
+            ssid="IONIS"
+            key_mgmt=WPA-EAP
+            eap=PEAP
+            identity="{username}"
+            password="{password}"
+            phase2="auth=MSCHAPV2"
+            ca_cert="N/A"
+        }}
+        """
+        with open("/etc/wpa_supplicant/wpa_supplicant.conf", "a") as file:
+            file.write(config)
+        
+        # Redémarre le service réseau pour appliquer les changements
+        subprocess.run(["sudo", "wpa_cli", "-i", "wlan0", "reconfigure"], check=True)
+        print(f"[INFO] Tentative de connexion au réseau 'IONIS' initiée.")
+        return {"status": "success", "message": "Connecting to IONIS network"}
+    except Exception as e:
+        print(f"[ERROR] Impossible de se connecter au réseau IONIS : {e}")
+        return {"status": "error", "message": str(e)}
+
+
+def scan_qr_code_and_connect():
+    """
+    Active la caméra pour lire les QR codes et tenter une connexion (Wi-Fi ou IONIS).
     """
     global frame_count
-    print("[INFO] Mode hors ligne activé : Lecture de QR code")
+    print("[INFO] Lecture de QR code pour connexion")
     vs = VideoStream(src=0).start()  # Démarre la caméra
     time.sleep(2.0)  # Laisser le temps à la caméra de chauffer
 
@@ -49,29 +78,47 @@ def scan_qr_code():
             barcodes = pyzbar.decode(frame)
 
             # Montre l'image en live
-            cv2.imshow("Mode Hors Ligne - QR Code Scanner", frame)
+            cv2.imshow("QR Code Scanner - Configuration Réseau", frame)
             key = cv2.waitKey(1) & 0xFF
 
             # Si l'utilisateur appuie sur 'q', quitter
             if key == ord('q'):
-                print("[INFO] Quitter le mode hors ligne")
+                print("[INFO] Quitter le mode lecture QR code")
                 break
 
             # Traite les QR codes détectés
             for barcode in barcodes:
                 barcode_data = barcode.data.decode("utf-8")
-                barcode_type = barcode.type
-                print(f"[INFO] Détecté : {barcode_data} ({barcode_type})")
+                print(f"[INFO] QR Code détecté : {barcode_data}")
 
-                # Dessine un cadre autour du QR code
-                (x, y, w, h) = barcode.rect
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
+                try:
+                    # Interprète les données comme JSON
+                    network_info = json.loads(barcode_data)
 
-                # Capture l'image si nécessaire
-                frame_count += 1
-                filename = f"frame_{frame_count}.jpg"
-                cv2.imwrite(filename, frame)
-                print(f"[INFO] Image sauvegardée sous : {filename}")
+                    if "ionis" in network_info:
+                        # Connexion au réseau IONIS
+                        username = network_info["ionis"].get("username")
+                        password = network_info["ionis"].get("password")
+                        if username and password:
+                            print(f"[INFO] Tentative de connexion au réseau IONIS avec l'identité '{username}'")
+                            result = connect_to_wifi_ionis(username, password)
+                            print(result)
+                            return result
+                        else:
+                            print("[ERROR] Informations IONIS invalides dans le QR code.")
+                    else:
+                        # Connexion Wi-Fi standard
+                        ssid = network_info.get("ssid")
+                        password = network_info.get("password")
+                        if ssid and password:
+                            print(f"[INFO] Tentative de connexion au réseau : {ssid}")
+                            result = connect_to_wifi(ssid, password)
+                            print(result)
+                            return result
+                        else:
+                            print("[ERROR] Informations Wi-Fi invalides dans le QR code.")
+                except json.JSONDecodeError:
+                    print("[ERROR] QR code ne contient pas de JSON valide.")
 
     finally:
         # Fermer le flux vidéo
@@ -88,13 +135,13 @@ def status():
     return jsonify({"connected": connection_status})
 
 
-@app.route("/scan", methods=["POST"])
-def manual_scan():
+@app.route("/scan_and_connect", methods=["POST"])
+def manual_scan_and_connect():
     """
-    Endpoint pour forcer une lecture de QR code (mode manuel).
+    Endpoint pour scanner un QR code et tenter une connexion.
     """
-    scan_qr_code()
-    return jsonify({"status": "QR code scanning completed"})
+    result = scan_qr_code_and_connect()
+    return jsonify(result)
 
 
 if __name__ == "__main__":
@@ -103,5 +150,5 @@ if __name__ == "__main__":
         print("[INFO] Internet détecté, démarrage du microservice HTTP")
         app.run(host="0.0.0.0", port=QRCODE_CONNECTION_MODULE_PORT, debug=False)
     else:
-        # Mode hors ligne : Lecture de QR code
-        scan_qr_code()
+        # Mode hors ligne : Lecture de QR code pour configuration réseau
+        scan_qr_code_and_connect()
