@@ -1,6 +1,14 @@
-# Microservice pour la Gestion d'un Capteur de Poids (HX711)
+Voici une version mise à jour du README intégrant les fonctionnalités du scanner de QR codes en plus de celles du capteur HX711 :
 
-Ce microservice expose des endpoints RESTful permettant d’interagir avec un capteur de poids (HX711) connecté à une carte (par exemple, une Raspberry Pi). Il offre des fonctionnalités pour mesurer le poids, démarrer/arrêter le mode de lecture, et consulter les valeurs en temps réel.
+---
+
+# Microservice pour Capteur de Poids (HX711) et Scanner de QR Codes
+
+Ce microservice expose des endpoints RESTful permettant d’interagir avec :
+1. Un **capteur de poids** (HX711) pour mesurer des objets.
+2. Une **caméra** pour scanner des QR codes et récupérer leur contenu.
+
+Ces fonctionnalités sont accessibles localement via une API REST.
 
 ---
 
@@ -9,15 +17,13 @@ Ce microservice expose des endpoints RESTful permettant d’interagir avec un ca
 1. **Matériel** :
    - Une carte compatible GPIO (Raspberry Pi, Jetson Nano, etc.).
    - Un capteur de poids HX711.
-   - Les broches connectées à :
-     - `DOUT` : GPIO 5.
-     - `SCK` : GPIO 6.
+   - Une caméra compatible (USB ou Raspberry Pi Camera Module).
 
 2. **Logiciels nécessaires** :
    - Python 3.7+.
    - Bibliothèques Python installées :
      ```bash
-     pip install flask RPi.GPIO
+     pip install flask RPi.GPIO opencv-python imutils pyzbar
      ```
    - La bibliothèque HX711 fournie dans le dossier `libs`.
 
@@ -27,7 +33,7 @@ Ce microservice expose des endpoints RESTful permettant d’interagir avec un ca
 
 1. Clonez ou téléchargez ce dépôt.
 2. Placez le fichier `HX711.py` dans le répertoire `libs/`.
-3. Assurez-vous que votre capteur HX711 est correctement câblé et connecté.
+3. Assurez-vous que votre capteur HX711 et votre caméra sont correctement câblés et connectés.
 
 ---
 
@@ -47,17 +53,19 @@ Ce microservice expose des endpoints RESTful permettant d’interagir avec un ca
 
 ## **Endpoints RESTful**
 
-### **1. Démarrer le Mode Polling**
+### **Fonctionnalités du Capteur de Poids (HX711)**
+
+#### **1. Démarrer le Mode Polling**
 - **URL** : `/start`
 - **Méthode HTTP** : `POST`
 - **Description** : Démarre le mode "polling", où les données du capteur sont collectées en continu.
 
-#### Exemple de Requête :
+##### Exemple de Requête :
 ```bash
 curl -X POST http://localhost:5000/start
 ```
 
-#### Exemple de Réponse :
+##### Exemple de Réponse :
 - **Succès** :
   ```json
   {
@@ -75,17 +83,17 @@ curl -X POST http://localhost:5000/start
 
 ---
 
-### **2. Arrêter le Mode Polling**
+#### **2. Arrêter le Mode Polling**
 - **URL** : `/stop`
 - **Méthode HTTP** : `POST`
 - **Description** : Arrête le mode "polling".
 
-#### Exemple de Requête :
+##### Exemple de Requête :
 ```bash
 curl -X POST http://localhost:5000/stop
 ```
 
-#### Exemple de Réponse :
+##### Exemple de Réponse :
 - **Succès** :
   ```json
   {
@@ -103,17 +111,17 @@ curl -X POST http://localhost:5000/stop
 
 ---
 
-### **3. Obtenir le Poids Actuel**
+#### **3. Obtenir le Poids Actuel**
 - **URL** : `/weight`
 - **Méthode HTTP** : `GET`
 - **Description** : Récupère le poids actuellement mesuré par le capteur.
 
-#### Exemple de Requête :
+##### Exemple de Requête :
 ```bash
 curl http://localhost:5000/weight
 ```
 
-#### Exemple de Réponse :
+##### Exemple de Réponse :
 - **Succès** :
   ```json
   {
@@ -121,11 +129,41 @@ curl http://localhost:5000/weight
     "weight": 123.45
   }
   ```
-- **Erreur** (si le capteur est déconnecté ou si une erreur matérielle survient) :
+- **Erreur** :
   ```json
   {
     "status": "error",
     "message": "Erreur lors de la lecture du capteur"
+  }
+  ```
+
+---
+
+### **Fonctionnalités du Scanner de QR Codes**
+
+#### **1. Scanner un QR Code**
+- **URL** : `/qrscan`
+- **Méthode HTTP** : `GET`
+- **Description** : Lance le scanner de QR codes et retourne le contenu du code détecté.
+
+##### Exemple de Requête :
+```bash
+curl http://localhost:5000/qrscan
+```
+
+##### Exemple de Réponse :
+- **Succès** :
+  ```json
+  {
+    "status": "success",
+    "data": "https://example.com"
+  }
+  ```
+- **Erreur** (si aucun code détecté) :
+  ```json
+  {
+    "status": "error",
+    "message": "No QR code detected"
   }
   ```
 
@@ -160,6 +198,12 @@ Pour arrêter le microservice :
      time.sleep(0.1)  # En secondes
      ```
 
+4. **Caméra par Défaut** :
+   - Par défaut, la caméra utilisée est accessible via `src=0`. Vous pouvez la modifier dans le script :
+     ```python
+     vs = VideoStream(src=0).start()
+     ```
+
 ---
 
 ## **Dépannage**
@@ -171,8 +215,14 @@ Pour arrêter le microservice :
      sudo gpio cleanup
      ```
 
-2. **Valeurs Incorrectes** :
+2. **Valeurs Incorrectes pour le Capteur de Poids** :
    - Recalibrez votre capteur HX711 (référez-vous aux commentaires dans le script pour le calibrage).
+
+3. **Scanner de QR Codes ne Fonctionne Pas** :
+   - Assurez-vous que la caméra est correctement connectée et fonctionne avec OpenCV :
+     ```bash
+     python3 -c "import cv2; print(cv2.VideoCapture(0).isOpened())"
+     ```
 
 ---
 
@@ -182,4 +232,4 @@ Pour toute question ou assistance, ouvrez une issue sur le dépôt ou contactez 
 
 --- 
 
-Avec ce fichier README, les utilisateurs pourront facilement configurer et utiliser votre microservice.
+Ce README explique clairement les fonctionnalités des deux services exposés par votre microservice.
