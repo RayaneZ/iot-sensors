@@ -3,7 +3,8 @@ Description=OTA Update Service for Jetson Nano
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 /opt/updater.py
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/bin/python3 /opt/bask-e/updater.py
 Restart=on-failure
 
 [Install]

@@ -1,0 +1,11 @@
+[Unit]
+Description=Service de scan QR
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/bin/python3 /opt/bask-e/qrscan.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

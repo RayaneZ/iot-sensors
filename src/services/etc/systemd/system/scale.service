@@ -1,0 +1,11 @@
+[Unit]
+Description=Service balance
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/bin/python3 /opt/bask-e/scale.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
