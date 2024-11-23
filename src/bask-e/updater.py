@@ -117,7 +117,12 @@ def dummy_upgrade(version_from, version_to):
         print("Extracting update package...")
         with zipfile.ZipFile(firmware_info.get(FW_TITLE_ATTR), 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
-        
+    
+        # Add permissions and execute the install.sh
+        print("Adding permissions and executing the install.sh...")
+        subprocess.run(["sudo", "chmod", "+x", temp_dir + "/install.sh"])
+        subprocess.run(["sudo", temp_dir + "/install.sh"], check=True)
+
         # Restart service to apply update
         print("Restarting service...")
         subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
