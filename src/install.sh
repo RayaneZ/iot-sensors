@@ -55,10 +55,23 @@ fi
 echo "Installation des dépendances OpenCV pour Jetson..."
 sudo apt install libopencv-dev python3-opencv -y
 
-# Exécute le script Python si présent
-if [ -f "qrscan.py" ]; then
-    echo "Exécution de qrscan.py..."
-    python3 qrscan.py
-else
-    echo "Le fichier qrscan.py n'a pas été trouvé dans le répertoire actuel."
+# Crée le répertoire d'installation si nécessaire
+if [ ! -d "/opt/bask-e" ]; then
+    echo "Création du répertoire d'installation..."
+    sudo mkdir -p /opt/bask-e
 fi
+
+# Copie les fichiers dans le répertoire d'installation
+echo "Copie des fichiers dans le répertoire d'installation..."
+sudo cp -r bask-e/ /opt/bask-e/
+
+# Configure les services système pour l'OTA
+echo "Configuration des services système pour l'OTA..."
+sudo cp services/etc/systemd/system/* /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable qrscan.service scale.service ota_update.service
+sudo systemctl start qrscan.service scale.service ota_update.service
+
+# Redémarre les services pour appliquer les changements
+echo "Redémarrage des services pour appliquer les changements..."
+sudo systemctl restart qrscan.service scale.service ota_update.service
