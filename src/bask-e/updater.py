@@ -10,13 +10,13 @@ import os
 import subprocess
 
 
-FW_CHECKSUM_ATTR = "fw_checksum"
-FW_CHECKSUM_ALG_ATTR = "fw_checksum_algorithm"
-FW_SIZE_ATTR = "fw_size"
-FW_TITLE_ATTR = "fw_title"
-FW_VERSION_ATTR = "fw_version"
+FW_CHECKSUM_ATTR = "sw_checksum"
+FW_CHECKSUM_ALG_ATTR = "sw_checksum_algorithm"
+FW_SIZE_ATTR = "sw_size"
+FW_TITLE_ATTR = "sw_title"
+FW_VERSION_ATTR = "sw_version"
 
-FW_STATE_ATTR = "fw_state"
+FW_STATE_ATTR = "sw_state"
 
 REQUIRED_SHARED_KEYS = [FW_CHECKSUM_ATTR, FW_CHECKSUM_ALG_ATTR, FW_SIZE_ATTR, FW_TITLE_ATTR, FW_VERSION_ATTR]
 

@@ -80,3 +80,17 @@ jobs:
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
+
+      - name: Configure Devices
+        env:
+          TB_TOKEN: ${{ env.TB_TOKEN }}
+        run: |
+          # Configurer les appareils avec la nouvelle version
+          response=$(curl -s -X POST "$THINGSBOARD_URL/api/deviceProfile/$DEVICE_PROFILE_ID/otaPackage" \
+            -H "X-Authorization: Bearer $TB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "otaPackageId": "'"$OTA_PACKAGE_ID"'",
+                  "version": "'"$TAG-$VERSION"'"
+                }')
+          echo $response
