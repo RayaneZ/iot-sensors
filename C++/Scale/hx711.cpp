@@ -1,7 +1,6 @@
 #include <iostream>
 #include <gpiod.h>
 #include <unistd.h>
-#include <bitset>
 #include <vector>
 #include <numeric>
 #include <fstream>
@@ -9,11 +8,13 @@
 #include <string>
 #include <sstream>
 #include <netinet/in.h>
-#include <chrono>  // For time measurement
 
 // Define GPIO pins
 #define DOUT_PIN 149 
 #define PD_SCK_PIN 200 
+
+// Scale factor for converting raw value to weight (you need to calibrate this)
+#define SCALE 2280.0f
 
 // File for storing weight history
 #define HISTORIQUE_POIDS_FILE "historique_poids.csv"
@@ -21,9 +22,8 @@
 // Function to read a bit from DOUT
 int read_next_bit(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line) {
     gpiod_line_set_value(pd_sck_line, 1);
-    usleep(1);  // Adjust the timing here as needed
+    usleep(1);  // Short delay for PD_SCK signal
     gpiod_line_set_value(pd_sck_line, 0);
-    usleep(1);  // Adjust the timing here as needed
     return gpiod_line_get_value(dout_line);
 }
 
@@ -40,9 +40,7 @@ unsigned char read_next_byte(struct gpiod_line *dout_line, struct gpiod_line *pd
 // Function to read 3 bytes of data from HX711
 void read_raw_data(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line, unsigned char &byte1, unsigned char &byte2, unsigned char &byte3) {
     byte1 = read_next_byte(dout_line, pd_sck_line);
-    usleep(1);  // Add delay between reads if necessary
     byte2 = read_next_byte(dout_line, pd_sck_line);
-    usleep(1);  // Add delay between reads if necessary
     byte3 = read_next_byte(dout_line, pd_sck_line);
 }
 
@@ -53,6 +51,49 @@ int32_t convert_from_twos_complement(const unsigned char byte1, const unsigned c
         raw_value |= 0xFF000000;
     }
     return raw_value;
+}
+
+// Function to calculate weight based on the raw value and scale factor
+float calculate_weight(int32_t raw_value) {
+    // Convert raw value to weight using the scale factor
+    return static_cast<float>(raw_value) / SCALE;
+}
+
+// Function to save weight to CSV
+void save_weight_to_history(float weight) {
+    std::ofstream file(HISTORIQUE_POIDS_FILE, std::ios_base::app);
+    if (file.is_open()) {
+        std::time_t now = std::time(nullptr);
+        char timestamp[100];
+        std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", std::localtime(&now));
+        file << timestamp << "," << weight << "\n";
+        file.close();
+    }
+}
+
+// Function to retrieve weight history
+std::string get_weight_history() {
+    std::ifstream file(HISTORIQUE_POIDS_FILE);
+    std::stringstream history;
+    std::string line;
+    if (file.is_open()) {
+        while (std::getline(file, line)) {
+            history << line << "\n";
+        }
+        file.close();
+    }
+    return history.str();
+}
+
+// HTTP response helper
+std::string build_response(const std::string &body, const std::string &content_type = "text/plain") {
+    std::ostringstream response;
+    response << "HTTP/1.1 200 OK\r\n";
+    response << "Content-Type: " << content_type << "\r\n";
+    response << "Content-Length: " << body.size() << "\r\n";
+    response << "\r\n";
+    response << body;
+    return response.str();
 }
 
 int main() {
@@ -74,22 +115,62 @@ int main() {
     gpiod_line_request_output(pd_sck_line, "HX711", 0);
     gpiod_line_request_input(dout_line, "HX711");
 
-    // Time measurement variables
-    auto last_read_time = std::chrono::steady_clock::now();
+    // Set up a simple HTTP server
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd == -1) {
+        perror("Socket creation failed");
+        return 1;
+    }
+
+    sockaddr_in server_addr{};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(8080);
+
+    if (bind(server_fd, (sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Bind failed");
+        close(server_fd);
+        return 1;
+    }
+
+    if (listen(server_fd, 5) == -1) {
+        perror("Listen failed");
+        close(server_fd);
+        return 1;
+    }
+
+    std::cout << "Server is running on port 8080...\n";
 
     while (true) {
-        unsigned char byte1, byte2, byte3;
-        read_raw_data(dout_line, pd_sck_line, byte1, byte2, byte3);
-        int32_t raw_value = convert_from_twos_complement(byte1, byte2, byte3);
+        int client_fd = accept(server_fd, nullptr, nullptr);
+        if (client_fd == -1) {
+            perror("Accept failed");
+            continue;
+        }
 
-        // Get the current time
-        auto current_time = std::chrono::steady_clock::now();
-        std::chrono::duration<double> time_diff = current_time - last_read_time;
-        last_read_time = current_time;
+        char buffer[4096];
+        ssize_t bytes_read = read(client_fd, buffer, sizeof(buffer) - 1);
+        if (bytes_read > 0) {
+            buffer[bytes_read] = '\0';
+            std::string request(buffer);
 
-        // Print the time between readings and the raw value
-        std::cout << "Time since last reading: " << time_diff.count() << " seconds\n";
-        std::cout << "Raw Value: " << raw_value << std::endl;
+            // Handle specific routes
+            std::string response;
+            if (request.find("GET /read_raw") == 0) {
+                unsigned char byte1, byte2, byte3;
+                read_raw_data(dout_line, pd_sck_line, byte1, byte2, byte3);
+                int32_t raw_value = convert_from_twos_complement(byte1, byte2, byte3);
+                float weight = calculate_weight(raw_value);
+                response = build_response("Raw Value: " + std::to_string(raw_value) + "\nWeight: " + std::to_string(weight));
+            } else if (request.find("GET /get_history") == 0) {
+                response = build_response(get_weight_history());
+            } else {
+                response = build_response("Unknown route", "text/plain");
+            }
+
+            write(client_fd, response.c_str(), response.size());
+        }
+        close(client_fd);
     }
 
     gpiod_chip_close(chip);
