@@ -21,9 +21,9 @@
 // Function to read a bit from DOUT
 int read_next_bit(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line) {
     gpiod_line_set_value(pd_sck_line, 1);
-    usleep(10);  // Adjust the timing here as needed
+    usleep(1);  // Adjust the timing here as needed
     gpiod_line_set_value(pd_sck_line, 0);
-    usleep(10);  // Adjust the timing here as needed
+    usleep(1);  // Adjust the timing here as needed
     return gpiod_line_get_value(dout_line);
 }
 
@@ -40,9 +40,9 @@ unsigned char read_next_byte(struct gpiod_line *dout_line, struct gpiod_line *pd
 // Function to read 3 bytes of data from HX711
 void read_raw_data(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line, unsigned char &byte1, unsigned char &byte2, unsigned char &byte3) {
     byte1 = read_next_byte(dout_line, pd_sck_line);
-    usleep(100);  // Add delay between reads if necessary
+    usleep(1);  // Add delay between reads if necessary
     byte2 = read_next_byte(dout_line, pd_sck_line);
-    usleep(100);  // Add delay between reads if necessary
+    usleep(1);  // Add delay between reads if necessary
     byte3 = read_next_byte(dout_line, pd_sck_line);
 }
 
