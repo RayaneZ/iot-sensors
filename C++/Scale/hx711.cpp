@@ -11,8 +11,8 @@
 #include <netinet/in.h>
 
 // Define GPIO pins
-#define DOUT_PIN 5
-#define PD_SCK_PIN 6
+#define DOUT_PIN 149
+#define PD_SCK_PIN 200
 
 // File for storing weight history
 #define HISTORIQUE_POIDS_FILE "historique_poids.csv"
@@ -32,6 +32,7 @@ unsigned char read_next_byte(struct gpiod_line *dout_line, struct gpiod_line *pd
         byte_value <<= 1;
         byte_value |= read_next_bit(dout_line, pd_sck_line);
     }
+    std::cout << "Read byte: " << std::bitset<8>(byte_value) << std::endl;  // Debugging output
     return byte_value;
 }
 
