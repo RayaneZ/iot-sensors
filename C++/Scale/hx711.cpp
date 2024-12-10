@@ -1,6 +1,7 @@
 #include <iostream>
 #include <gpiod.h>
 #include <unistd.h>
+#include <bitset>
 #include <vector>
 #include <numeric>
 #include <fstream>
@@ -13,16 +14,13 @@
 #define DOUT_PIN 149 
 #define PD_SCK_PIN 200 
 
-// Scale factor for converting raw value to weight (you need to calibrate this)
-#define SCALE 2280.0f
-
 // File for storing weight history
 #define HISTORIQUE_POIDS_FILE "historique_poids.csv"
 
 // Function to read a bit from DOUT
 int read_next_bit(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line) {
     gpiod_line_set_value(pd_sck_line, 1);
-    usleep(1);  // Short delay for PD_SCK signal
+    usleep(1); // Small delay to ensure timing
     gpiod_line_set_value(pd_sck_line, 0);
     return gpiod_line_get_value(dout_line);
 }
@@ -42,21 +40,36 @@ void read_raw_data(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line,
     byte1 = read_next_byte(dout_line, pd_sck_line);
     byte2 = read_next_byte(dout_line, pd_sck_line);
     byte3 = read_next_byte(dout_line, pd_sck_line);
+
+    // Debugging raw bytes
+    std::cout << "Byte 1: " << (int)byte1 << " Byte 2: " << (int)byte2 << " Byte 3: " << (int)byte3 << std::endl;
 }
 
 // Function to convert 24-bit value from two's complement
 int32_t convert_from_twos_complement(const unsigned char byte1, const unsigned char byte2, const unsigned char byte3) {
     int32_t raw_value = (byte1 << 16) | (byte2 << 8) | byte3;
     if (raw_value & 0x800000) {
-        raw_value |= 0xFF000000;
+        raw_value |= 0xFF000000;  // Extend sign for two's complement
     }
     return raw_value;
 }
 
-// Function to calculate weight based on the raw value and scale factor
-float calculate_weight(int32_t raw_value) {
-    // Convert raw value to weight using the scale factor
-    return static_cast<float>(raw_value) / SCALE;
+// Function to tare (calibrate offset)
+int32_t tare(struct gpiod_line *dout_line, struct gpiod_line *pd_sck_line, int num_samples) {
+    std::vector<int32_t> readings;
+    for (int i = 0; i < num_samples; ++i) {
+        unsigned char byte1, byte2, byte3;
+        read_raw_data(dout_line, pd_sck_line, byte1, byte2, byte3);
+        int32_t raw_value = convert_from_twos_complement(byte1, byte2, byte3);
+        readings.push_back(raw_value);
+    }
+    int32_t sum = std::accumulate(readings.begin(), readings.end(), 0);
+    return sum / readings.size();
+}
+
+// Function to calculate weight from raw value
+float calculate_weight(int32_t raw_value, float scale) {
+    return raw_value / scale;
 }
 
 // Function to save weight to CSV
@@ -160,7 +173,9 @@ int main() {
                 unsigned char byte1, byte2, byte3;
                 read_raw_data(dout_line, pd_sck_line, byte1, byte2, byte3);
                 int32_t raw_value = convert_from_twos_complement(byte1, byte2, byte3);
-                float weight = calculate_weight(raw_value);
+                std::cout << "Raw Value: " << raw_value << std::endl;  // Debugging the raw value
+                float weight = calculate_weight(raw_value, 1000);  // Example scale value
+                std::cout << "Weight: " << weight << std::endl;  // Debugging weight calculation
                 response = build_response("Raw Value: " + std::to_string(raw_value) + "\nWeight: " + std::to_string(weight));
             } else if (request.find("GET /get_history") == 0) {
                 response = build_response(get_weight_history());
