@@ -90,9 +90,6 @@ int main() {
         // Print the time between readings and the raw value
         std::cout << "Time since last reading: " << time_diff.count() << " seconds\n";
         std::cout << "Raw Value: " << raw_value << std::endl;
-
-        // You can sleep here if you need a delay between readings
-        usleep(100000);  // Example: sleep for 100ms between readings
     }
 
     gpiod_chip_close(chip);
