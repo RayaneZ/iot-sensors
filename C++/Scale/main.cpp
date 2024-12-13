@@ -12,7 +12,7 @@ public:
     bool is_ready();
     void set_gain(uint8_t gain);
     long read();
-    void wait_ready(unsigned long delay_ms = 1);
+    void wait_ready(unsigned long delay_ms = 0.001);
     void power_down();
     void power_up();
 
