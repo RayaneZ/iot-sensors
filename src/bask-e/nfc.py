@@ -7,12 +7,12 @@ import json
 
 app = Flask(__name__)
 
-# Initialisation du lecteur NFC
+# Initialize NFC reader
 pn = Pn532_i2c()
 pn.SAMconfigure()
 
 def format_card_data(data):
-    """Convertit les données de la carte en format JSON"""
+    """Convert card data to JSON format"""
     try:
         return json.loads(data.decode('utf-8'))
     except:
@@ -46,37 +46,37 @@ def read_nfc():
 @app.route('/api/nfc/write', methods=['POST'])
 def write_nfc():
     try:
-        # Vérification du contenu de la requête
+        # Check request content
         if not request.is_json:
-            raise ValueError("Le contenu doit être en JSON")
+            raise ValueError("Content must be JSON")
         
         content = request.get_json()
         if 'data' not in content:
-            raise ValueError("Le champ 'data' est requis")
+            raise ValueError("Field 'data' is required")
 
         data = content['data']
-        block = content.get('block', 1)  # Block par défaut = 1
+        block = content.get('block', 1)  # Default block = 1
         
-        # Conversion des données en bytes si nécessaire
+        # Convert data to bytes if needed
         if isinstance(data, str):
             data = data.encode('utf-8')
         elif isinstance(data, dict):
             data = json.dumps(data).encode('utf-8')
             
-        # Vérification de la taille des données (16 bytes max par bloc)
+        # Check data size (16 bytes max per block)
         if len(data) > 16:
-            raise ValueError("Les données ne doivent pas dépasser 16 bytes")
+            raise ValueError("Data must not exceed 16 bytes")
             
-        # Authentification avec la carte (clé par défaut)
+        # Card authentication (default key)
         key = b'\xFF\xFF\xFF\xFF\xFF\xFF'
         pn.mifare_auth(block, key)
         
-        # Écriture des données
+        # Write data
         pn.mifare_write(block, data)
         
         return jsonify({
             'success': True,
-            'message': 'Données écrites avec succès',
+            'message': 'Data written successfully',
             'block': block,
             'timestamp': datetime.now().isoformat()
         })
