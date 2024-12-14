@@ -143,8 +143,8 @@ def dummy_upgrade(version_from, version_to):
 if __name__ == '__main__':
     config = collect_required_data()
     current_firmware_info = {
-        "current_fw_title": None,
-        "current_fw_version": None
+        "current_sw_title": None,
+        "current_sw_version": None
     }
     send_telemetry(current_firmware_info)
 
