@@ -8,6 +8,7 @@ from random import randint
 import zipfile
 import os
 import subprocess
+import threading
 
 
 FW_CHECKSUM_ATTR = "sw_checksum"
@@ -25,9 +26,29 @@ def collect_required_data():
     config = { 
         "host": "iot-5etoiles.bnf.sigl.epita.fr", 
         "token": "muOVFVkq5YWhvpGoSmJq", 
-        "chunk_size": 0 
+        "chunk_size": 0,
+        "username": "sysadmin@thingsboard.org",
+        "password": "sysadmin5etoilesiot"
     }
     return config
+
+
+def get_auth_token():
+    response = post(f"https://{config['host']}/api/auth/login", 
+                   json={
+                       "username": config["username"],
+                       "password": config["password"]
+                   })
+    return response.json().get("token")
+
+
+def send_online_status(auth_token):
+    while True:
+        headers = {"Authorization": f"Bearer {auth_token}"}
+        post(f"https://{config['host']}/api/v1/{config['token']}/telemetry",
+             headers=headers,
+             json={"status": "online"})
+        sleep(10)
 
 
 def send_telemetry(telemetry):
@@ -142,6 +163,13 @@ def dummy_upgrade(version_from, version_to):
 
 if __name__ == '__main__':
     config = collect_required_data()
+    
+    # Get initial auth token and start status thread
+    auth_token = get_auth_token()
+    status_thread = threading.Thread(target=send_online_status, args=(auth_token,))
+    status_thread.daemon = True
+    status_thread.start()
+    
     current_firmware_info = {
         "current_sw_title": None,
         "current_sw_version": None
@@ -150,7 +178,6 @@ if __name__ == '__main__':
 
     print(f"Getting firmware info from {config['host']}..")
     while True:
-
         firmware_info = get_firmware_info()
 
         if (firmware_info.get(FW_VERSION_ATTR) is not None and firmware_info.get(FW_VERSION_ATTR) != current_firmware_info.get("current_" + FW_VERSION_ATTR)) \

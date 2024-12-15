@@ -1,1 +1,6 @@
 gpiod==1.5.0
+requests==2.31.0
+zlib==1.2.13
+hashlib==3.2
+mmh3==3.0.0
+zipfile==3.10.0
