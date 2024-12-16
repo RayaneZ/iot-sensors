@@ -1,6 +1,9 @@
 name: Deploy OTA Package to ThingsBoard
 
 on:
+  repository_dispatch:
+    types:
+      - trigger-ota
   push:
     tags:
       - '*'
@@ -15,20 +18,36 @@ jobs:
       TB_USERNAME: ${{ secrets.TB_USERNAME }}
       TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
       DEVICE_PROFILE_ID: "68c1c3f0-9905-11ef-af50-911365b0425f"
-      
+
     steps:
+      # Checkout code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Get version from git
-        id: version
-        run: |
-          echo "VERSION=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+      # Download APK artifact from Flutter CI
+      - name: Download APK Artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: Flutter CI
+          repository: your-org/flutter-repo
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          name: flutter-apk
+          path: ./flutter-apk
 
+      # Download Linux artifact from Flutter CI
+      - name: Download Linux Desktop Artifact
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: Flutter CI
+          repository: your-org/flutter-repo
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          name: flutter-linux-app
+          path: ./flutter-linux-app
+
+      # Use artifacts in your OTA package
       - name: Package application for OTA
         run: |
-          zip -r ota_package.zip ./src/*
+          zip -r ota_package.zip ./flutter-apk/app-release.apk ./flutter-linux-app/*
 
       - name: Upload OTA package artifact
         uses: actions/upload-artifact@v3
@@ -57,17 +76,16 @@ jobs:
                   "version":"'"$TAG-$VERSION"'",
                   "tag":"'"$TAG"'",
                   "type":"SOFTWARE",
-                  "deviceProfileId":{
-                        "entityType":"DEVICE_PROFILE",
-                        "id":"'"$DEVICE_PROFILE_ID"'"
+                  "deviceProfileId": {
+                    "entityType":"DEVICE_PROFILE",
+                    "id":"'"$DEVICE_PROFILE_ID"'"
                   },
                   "isURL":false,
-                  "additionalInfo":{
+                  "additionalInfo": {
                     "description":"Release '"$TAG"' (commit: '"$VERSION"')"
                   }
                 }')
           ota_package_id=$(echo "$response" | jq -r '.id.id')
-          echo $response
           echo "OTA_PACKAGE_ID=$ota_package_id" >> $GITHUB_ENV
 
       - name: Upload OTA Content
@@ -75,7 +93,6 @@ jobs:
           TB_TOKEN: ${{ env.TB_TOKEN }}
           OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
         run: |
-          # Télécharger le contenu OTA sur ThingsBoard
           curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID?checksumAlgorithm=SHA256" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
@@ -85,7 +102,6 @@ jobs:
         env:
           TB_TOKEN: ${{ env.TB_TOKEN }}
         run: |
-          # Configurer les appareils avec la nouvelle version
           response=$(curl -s -X POST "$THINGSBOARD_URL/api/deviceProfile/$DEVICE_PROFILE_ID/otaPackage" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -H "Content-Type: application/json" \
