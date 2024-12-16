@@ -6,23 +6,6 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-# Update packages
-if [ -x "$(command -v apt)" ]; then
-    echo "Updating packages..."
-    apt update
-else
-    echo "apt is not available on this system."
-    exit 1
-fi
-
-# Install required packages
-echo "Installing required packages..."
-apt install -y python3 python3-pip docker.io docker-compose
-
-# Install Python requirements
-echo "Installing Python requirements..."
-pip3 install -r requirements.txt
-
 # Create installation directory if needed
 if [ ! -d "/opt/bask-e" ]; then
     echo "Creating installation directory..."
