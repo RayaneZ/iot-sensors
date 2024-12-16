@@ -69,6 +69,19 @@ class ShoppingCart:
         except requests.exceptions.RequestException as e:
             print(f"Erreur lors de l'envoi des données à Thingsboard : {str(e)}")
 
+    def send_payment_status(self, is_paid):
+        """Envoie l'état de paiement à Thingsboard"""
+        url = "https://iot-5etoiles.bnf.sigl.epita.fr/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
+        payload = {
+            "isPaid": is_paid
+        }
+        try:
+            response = requests.post(url, json=payload, headers={"Authorization": f"Bearer {self.token}"})
+            response.raise_for_status()  # Vérifie si la requête est réussie
+            print("État de paiement envoyé à Thingsboard avec succès")
+        except requests.exceptions.RequestException as e:
+            print(f"Erreur lors de l'envoi de l'état de paiement à Thingsboard : {str(e)}")
+
 if __name__ == '__main__':
     # Token pour accéder à Thingsboard
     token = "muOVFVkq5YWhvpGoSmJq"  # Token d'authentification Thingsboard
@@ -102,6 +115,11 @@ if __name__ == '__main__':
                     cart.product_list = []
                     cart.total_price = 0
                     cart.send_telemetry()
+                    
+                    # Envoi de l'état de paiement à Thingsboard
+                    cart.send_payment_status(True)  # Ajout de l'envoi de l'état de paiement
+            else:
+                cart.send_payment_status(False)  # Envoi de l'état de paiement si non payé
         except json.JSONDecodeError as e:
             print(f"Erreur de décodage JSON: {e}")
 
