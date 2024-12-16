@@ -9,7 +9,7 @@ fi
 # Update packages
 if [ -x "$(command -v apt)" ]; then
     echo "Updating packages..."
-    apt update && apt upgrade -y
+    apt update
 else
     echo "apt is not available on this system."
     exit 1
