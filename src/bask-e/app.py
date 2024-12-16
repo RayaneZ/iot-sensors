@@ -160,12 +160,23 @@ if __name__ == '__main__':
         except json.JSONDecodeError as e:
             print(f"Erreur de décodage JSON: {e}")
 
+    def on_objects_detected(client, userdata, message):
+        """Callback pour les objets détectés par YOLO"""
+        try:
+            objects = json.loads(message.payload)
+            print("Objets détectés:")
+            for obj in objects:
+                print(f"- {obj['label']} (confiance: {obj['score']})")
+        except json.JSONDecodeError as e:
+            print(f"Erreur de décodage JSON: {e}")
+
     # Souscription aux topics MQTT
     mqtt_client.subscribe("nfc/card/read")
     mqtt_client.subscribe("nfc/payment_mode") 
     mqtt_client.subscribe("scale/weight")
     mqtt_client.subscribe("scale/weight_change")
     mqtt_client.subscribe("scale/weight_mode")
+    mqtt_client.subscribe("camera/objects/detected")
 
     # Configuration des callbacks
     mqtt_client.message_callback_add("nfc/card/read", on_nfc_message)
@@ -173,6 +184,7 @@ if __name__ == '__main__':
     mqtt_client.message_callback_add("scale/weight", on_scale_message)
     mqtt_client.message_callback_add("scale/weight_change", on_weight_change)
     mqtt_client.message_callback_add("scale/weight_mode", on_weight_mode)
+    mqtt_client.message_callback_add("camera/objects/detected", on_objects_detected)
 
     # Démarrage de la boucle MQTT
     mqtt_client.loop_start()
