@@ -1,112 +1,53 @@
-name: Deploy OTA Package to ThingsBoard
+name: Flutter CI
 
 on:
-  repository_dispatch:
-    types:
-      - trigger-ota
   push:
-    tags:
-      - '*'
-  workflow_dispatch:
+    branches: [ "flutterflow" ]
+  pull_request:
+    branches: [ "flutterflow" ]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
-    env:
-      THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
-      TB_USERNAME: ${{ secrets.TB_USERNAME }}
-      TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
-      DEVICE_PROFILE_ID: "68c1c3f0-9905-11ef-af50-911365b0425f"
-
     steps:
-      # Checkout code
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      # Download APK artifact from Flutter CI
-      - name: Download APK Artifact
-        uses: dawidd6/action-download-artifact@v2
+      - uses: subosito/flutter-action@v2
         with:
-          workflow: Flutter CI
-          repository: your-org/flutter-repo
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          name: flutter-apk
-          path: ./flutter-apk
+          flutter-version: '3.24.0'
 
-      # Download Linux artifact from Flutter CI
-      - name: Download Linux Desktop Artifact
-        uses: dawidd6/action-download-artifact@v2
-        with:
-          workflow: Flutter CI
-          repository: your-org/flutter-repo
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          name: flutter-linux-app
-          path: ./flutter-linux-app
+      - name: Install dependencies
+        run: flutter pub get
 
-      # Use artifacts in your OTA package
-      - name: Package application for OTA
+      - name: Install Linux Dependencies
         run: |
-          zip -r ota_package.zip ./flutter-apk/app-release.apk ./flutter-linux-app/*
+          sudo apt-get update
+          sudo apt-get install -y build-essential clang cmake ninja-build pkg-config libgtk-3-dev
 
-      - name: Upload OTA package artifact
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v3
         with:
-          name: ota_package
-          path: ota_package.zip
+          name: flutter-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
 
-      - name: Authenticate to ThingsBoard
-        id: tb_login
-        run: |
-          response=$(curl -s -X POST "$THINGSBOARD_URL/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"username": "'"$TB_USERNAME"'", "password": "'"$TB_PASSWORD"'"}')
-          token=$(echo "$response" | jq -r '.token')
-          echo "TB_TOKEN=$token" >> $GITHUB_ENV
+      - name: Build Linux Desktop
+        run: flutter build linux --release
 
-      - name: Create OTA Package in ThingsBoard
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-        run: |
-          response=$(curl -s -X POST "$THINGSBOARD_URL/api/otaPackage" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "title":"Python et TRT Update",
-                  "version":"'"$TAG-$VERSION"'",
-                  "tag":"'"$TAG"'",
-                  "type":"SOFTWARE",
-                  "deviceProfileId": {
-                    "entityType":"DEVICE_PROFILE",
-                    "id":"'"$DEVICE_PROFILE_ID"'"
-                  },
-                  "isURL":false,
-                  "additionalInfo": {
-                    "description":"Release '"$TAG"' (commit: '"$VERSION"')"
-                  }
-                }')
-          ota_package_id=$(echo "$response" | jq -r '.id.id')
-          echo "OTA_PACKAGE_ID=$ota_package_id" >> $GITHUB_ENV
+      - name: Upload Linux Desktop artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: flutter-linux-app
+          path: build/linux/x64/release/bundle/*
 
-      - name: Upload OTA Content
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-          OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
-        run: |
-          curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID?checksumAlgorithm=SHA256" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -F "file=@ota_package.zip" \
-            -H "Content-Type: multipart/form-data"
-
-      - name: Configure Devices
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-        run: |
-          response=$(curl -s -X POST "$THINGSBOARD_URL/api/deviceProfile/$DEVICE_PROFILE_ID/otaPackage" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "otaPackageId": "'"$OTA_PACKAGE_ID"'",
-                  "version": "'"$TAG-$VERSION"'"
-                }')
-          echo $response
+      # Trigger Main Repository Workflow
+      - name: Trigger Main Workflow
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          repository: your-org/main-repo
+          event-type: trigger-ota
+          client-payload: '{"ref": "${{ github.ref_name }}", "repository": "RayaneZ/iot-mobile"}'
