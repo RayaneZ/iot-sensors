@@ -6,8 +6,6 @@ from hx711 import HX711
 import paho.mqtt.client as mqtt
 
 # {
-#    "weight_increased": true,
-#    "weight_decreased": false,
 #    "delta": 15,
 #    "current_weight": 120,
 #    "timestamp": "2024-12-16T12:34:56"
@@ -48,9 +46,20 @@ hx = HX711(dout=11, pd_sck=7, chip=chip)
 hx.set_reading_format("MSB", "MSB")
 hx.set_reference_unit(referenceUnit)
 hx.reset()
-hx.tare()
+
+def tare_with_average(num_samples=10):
+    """Effectue la tare en prenant la moyenne de plusieurs lectures."""
+    total = 0
+    for _ in range(num_samples):
+        total += hx.get_weight(5)
+        time.sleep(0.1)  # Petite pause entre les lectures
+    average = total / num_samples
+    hx.set_offset(average)  # Définir l'offset basé sur la moyenne
+    print(f"Tare effectuée avec une moyenne de {average} g.")
 
 print("Tare done! Add weight now...")
+hx.tare()  # Remplacer par la nouvelle fonction
+tare_with_average()  # Appeler la fonction de tare avec moyenne
 
 def update_weight_mode(weight):
     """Mise à jour du mode de détection de poids."""
@@ -69,18 +78,14 @@ def check_weight_change(current_weight):
     global previous_weight
 
     delta = current_weight - previous_weight
-    weight_increased = delta > 0
-    weight_decreased = delta < 0
 
     # Publier les changements de poids
     mqtt_client.publish(MQTT_TOPIC_WEIGHT_CHANGE, json.dumps({
-        'weight_increased': weight_increased,
-        'weight_decreased': weight_decreased,
         'delta': delta,
-        'current_weight': current_weight,  # Ajouter le poids actuel
+        'current_weight': current_weight,
         'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
     }))
-    print(f"Publié sur MQTT : poids actuel = {current_weight}, delta = {delta}, increased = {weight_increased}, decreased = {weight_decreased}")
+    print(f"Publié sur MQTT : poids actuel = {current_weight}, delta = {delta}")
 
     # Mettre à jour le poids précédent
     previous_weight = current_weight
@@ -97,7 +102,7 @@ except Exception as e:
 try:
     while True:
         # Lire le poids actuel
-        current_weight = max(0, int(hx.get_weight(5)))  # Convertir en entier et éviter les valeurs négatives
+        current_weight = max(0, int(hx.get_weight(10)))  # Convertir en entier et éviter les valeurs négatives
         print(f"Poids mesuré : {current_weight} g")
 
         # Publier le poids sur MQTT

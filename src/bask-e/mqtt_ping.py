@@ -33,7 +33,6 @@ def get_auth_token(config):
     return response.json().get("token")
 
 def send_online_status(config, auth_token):
-    """Envoie le statut "online" via HTTP et MQTT."""
     global health_check_active
     while True:
         if health_check_active:
@@ -45,7 +44,6 @@ def send_online_status(config, auth_token):
             
             # Publication MQTT
             mqtt_client.publish(MQTT_TOPIC_STATUS, "online")
-            print(f"Publié sur MQTT : statut = online")
         
         sleep(10)
 
@@ -70,12 +68,6 @@ def disable_health_check():
     print("Publié sur MQTT : health_check_disabled")
     
     return jsonify({"status": "Health check disabled"})
-
-@app.route('/health/status', methods=['GET'])
-def get_health_status():
-    return jsonify({
-        "health_check_active": health_check_active
-    })
 
 if __name__ == '__main__':
     # Collecter la configuration
