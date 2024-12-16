@@ -1,0 +1,11 @@
+[Unit]
+Description=Service ping alive
+After=network.target ota_update.service
+
+[Service]
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/bin/python3 /opt/bask-e/mqtt_ping.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Service nfc
+After=network.target ota_update.service
+
+[Service]
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/bin/python3 /opt/bask-e/mqtt_nfc.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

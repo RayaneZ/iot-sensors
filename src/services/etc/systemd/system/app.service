@@ -1,11 +1,10 @@
 [Unit]
-Description=Service balance
-After=network.target ota_update.service
-Requires=docker.service
+Description=Service ping alive
+After=network.target ota_update.service mqtt_nfc.service mqtt_ping.service mqtt_scale.service mqtt_yolo.service
 
 [Service]
 WorkingDirectory=/opt/bask-e
-ExecStart=/usr/local/bin/docker-compose -f /opt/bask-e/docker-compose.yml up app
+ExecStart=/usr/bin/python3 /opt/bask-e/app.py
 Restart=always
 
 [Install]
