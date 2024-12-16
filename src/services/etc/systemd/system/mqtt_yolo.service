@@ -4,7 +4,7 @@ After=network.target ota_update.service
 
 [Service]
 WorkingDirectory=/opt/bask-e
-ExecStart=/usr/bin/python3 /opt/bask-e/mqtt_yolo.py
+ExecStart=/usr/bin/python3 /opt/bask-e/yolo/mqtt_yolo.py
 Restart=always
 
 [Install]
