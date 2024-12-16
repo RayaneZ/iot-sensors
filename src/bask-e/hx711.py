@@ -73,14 +73,16 @@ class HX711:
             # software try to access get values from the class at the same time.
             self.readLock = threading.Lock()
         
-        self.PD_SCK.request(
-            consumer=DEFAULT_GPIOD_CONSUMER,
-            type=gpiod.LINE_REQ_DIR_OUT
-        )
-        self.DOUT.request(
-            consumer=DEFAULT_GPIOD_CONSUMER,
-            type=gpiod.LINE_REQ_DIR_IN
-        )
+        config_dout = gpiod.line_request()
+        config_dout.consumer = DEFAULT_GPIOD_CONSUMER
+        config_dout.request_type = gpiod.line_request.DIRECTION_INPUT
+
+        config_sck = gpiod.line_request()
+        config_sck.consumer = DEFAULT_GPIOD_CONSUMER
+        config_sck.request_type = gpiod.line_request.DIRECTION_OUTPUT
+
+        self.PD_SCK.request(config_sck)
+        self.DOUT.request(config_dout)
         
         self.GAIN:int = 0
 

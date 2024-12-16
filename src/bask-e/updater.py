@@ -11,15 +11,15 @@ import subprocess
 import threading
 
 
-FW_CHECKSUM_ATTR = "sw_checksum"
-FW_CHECKSUM_ALG_ATTR = "sw_checksum_algorithm"
-FW_SIZE_ATTR = "sw_size"
-FW_TITLE_ATTR = "sw_title"
-FW_VERSION_ATTR = "sw_version"
+SW_CHECKSUM_ATTR = "sw_checksum"
+SW_CHECKSUM_ALG_ATTR = "sw_checksum_algorithm"
+SW_SIZE_ATTR = "sw_size"
+SW_TITLE_ATTR = "sw_title"
+SW_VERSION_ATTR = "sw_version"
 
-FW_STATE_ATTR = "sw_state"
+SW_STATE_ATTR = "sw_state"
 
-REQUIRED_SHARED_KEYS = [FW_CHECKSUM_ATTR, FW_CHECKSUM_ALG_ATTR, FW_SIZE_ATTR, FW_TITLE_ATTR, FW_VERSION_ATTR]
+REQUIRED_SHARED_KEYS = [SW_CHECKSUM_ATTR, SW_CHECKSUM_ALG_ATTR, SW_SIZE_ATTR, SW_TITLE_ATTR, SW_VERSION_ATTR]
 
 
 def collect_required_data():
@@ -56,74 +56,74 @@ def send_telemetry(telemetry):
     post(f"https://{config['host']}/api/v1/{config['token']}/telemetry",json=telemetry)
 
 
-def get_firmware_info():
+def get_software_info():
     response = get(f"https://{config['host']}/api/v1/{config['token']}/attributes", params={"sharedKeys": REQUIRED_SHARED_KEYS}).json()
     return response.get("shared", {})
 
 
-def get_firmware(fw_info):
-    chunk_count = ceil(fw_info.get(FW_SIZE_ATTR, 0)/config["chunk_size"]) if config["chunk_size"] > 0 else 0
-    firmware_data = b''
+def get_software(sw_info):
+    chunk_count = ceil(sw_info.get(SW_SIZE_ATTR, 0)/config["chunk_size"]) if config["chunk_size"] > 0 else 0
+    software_data = b''
     for chunk_number in range (chunk_count + 1):
         params = {
-            "title": fw_info.get(FW_TITLE_ATTR),
-            "version": fw_info.get(FW_VERSION_ATTR),
-            "size": config["chunk_size"] if config["chunk_size"] < fw_info.get(FW_SIZE_ATTR, 0) else fw_info.get(FW_SIZE_ATTR, 0),
+            "title": sw_info.get(SW_TITLE_ATTR),
+            "version": sw_info.get(SW_VERSION_ATTR),
+            "size": config["chunk_size"] if config["chunk_size"] < sw_info.get(SW_SIZE_ATTR, 0) else sw_info.get(SW_SIZE_ATTR, 0),
             "chunk": chunk_number
         }
 
         print(params)
         print(f'Getting chunk with number: {chunk_number + 1}. Chunk size is : {config["chunk_size"]} byte(s).')
-        print(f"https://{config['host']}/api/v1/{config['token']}/firmware", params)
-        response = get(f"https://{config['host']}/api/v1/{config['token']}/firmware", params=params)
+        print(f"https://{config['host']}/api/v1/{config['token']}/software", params)
+        response = get(f"https://{config['host']}/api/v1/{config['token']}/software", params=params)
         if response.status_code != 200:
             print("Received error:")
             response.raise_for_status()
             return
-        firmware_data = firmware_data + response.content
-    return firmware_data
+        software_data = software_data + response.content
+    return software_data
 
 
-def verify_checksum(firmware_data, checksum_alg, checksum):
-    if firmware_data is None:
-        print("Firmware wasn't received!")
+def verify_checksum(software_data, checksum_alg, checksum):
+    if software_data is None:
+        print("Software wasn't received!")
         return False
     if checksum is None:
         print("Checksum was't provided!")
         return False
-    checksum_of_received_firmware = None
+    checksum_of_received_software = None
     print(f"Checksum algorithm is: {checksum_alg}")
     if checksum_alg.lower() == "sha256":
-        checksum_of_received_firmware = sha256(firmware_data).digest().hex()
+        checksum_of_received_software = sha256(software_data).digest().hex()
     elif checksum_alg.lower() == "sha384":
-        checksum_of_received_firmware = sha384(firmware_data).digest().hex()
+        checksum_of_received_software = sha384(software_data).digest().hex()
     elif checksum_alg.lower() == "sha512":
-        checksum_of_received_firmware = sha512(firmware_data).digest().hex()
+        checksum_of_received_software = sha512(software_data).digest().hex()
     elif checksum_alg.lower() == "md5":
-        checksum_of_received_firmware = md5(firmware_data).digest().hex()
+        checksum_of_received_software = md5(software_data).digest().hex()
     elif checksum_alg.lower() == "murmur3_32":
-        reversed_checksum = f'{hash(firmware_data, signed=False):0>2X}'
+        reversed_checksum = f'{hash(software_data, signed=False):0>2X}'
         if len(reversed_checksum) % 2 != 0:
             reversed_checksum = '0' + reversed_checksum
-        checksum_of_received_firmware = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
+        checksum_of_received_software = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
     elif checksum_alg.lower() == "murmur3_128":
-        reversed_checksum = f'{hash128(firmware_data, signed=False):0>2X}'
+        reversed_checksum = f'{hash128(software_data, signed=False):0>2X}'
         if len(reversed_checksum) % 2 != 0:
             reversed_checksum = '0' + reversed_checksum
-        checksum_of_received_firmware = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
+        checksum_of_received_software = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
     elif checksum_alg.lower() == "crc32":
-        reversed_checksum = f'{crc32(firmware_data) & 0xffffffff:0>2X}'
+        reversed_checksum = f'{crc32(software_data) & 0xffffffff:0>2X}'
         if len(reversed_checksum) % 2 != 0:
             reversed_checksum = '0' + reversed_checksum
-        checksum_of_received_firmware = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
+        checksum_of_received_software = "".join(reversed([reversed_checksum[i:i+2] for i in range(0, len(reversed_checksum), 2)])).lower()
     else:
         print("Client error. Unsupported checksum algorithm.")
-    print(checksum_of_received_firmware)
+    print(checksum_of_received_software)
     random_value = randint(0, 5)
     if random_value > 3:
         print("Dummy fail! Do not panic, just restart and try again the chance of this fail is ~20%")
         return False
-    return checksum_of_received_firmware == checksum
+    return checksum_of_received_software == checksum
 
 
 def dummy_upgrade(version_from, version_to):
@@ -136,7 +136,7 @@ def dummy_upgrade(version_from, version_to):
     try:
         # Extract update package
         print("Extracting update package...")
-        with zipfile.ZipFile(firmware_info.get(FW_TITLE_ATTR), 'r') as zip_ref:
+        with zipfile.ZipFile(software_info.get(SW_TITLE_ATTR), 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
     
         # Add permissions and execute the install.sh
@@ -148,7 +148,7 @@ def dummy_upgrade(version_from, version_to):
         print("Restarting service...")
         subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
         
-        print(f"Firmware updated successfully to version {version_to}")
+        print(f"Software updated successfully to version {version_to}")
         
     except Exception as e:
         print(f"Error during upgrade: {str(e)}")
@@ -170,59 +170,66 @@ if __name__ == '__main__':
     status_thread.daemon = True
     status_thread.start()
     
-    current_firmware_info = {
+    # Initialiser les informations du software actuel
+    current_software_info = {
         "current_sw_title": None,
         "current_sw_version": None
     }
-    send_telemetry(current_firmware_info)
+    send_telemetry(current_software_info)
 
-    print(f"Getting firmware info from {config['host']}..")
+    print(f"Getting software info from {config['host']}..")
     while True:
-        firmware_info = get_firmware_info()
+        software_info = get_software_info()
+        
+        # Vérifier si une nouvelle version est disponible en comparant avec la version actuelle
+        new_version_available = False
+        if software_info.get(SW_VERSION_ATTR) and software_info.get(SW_TITLE_ATTR):
+            if current_software_info.get("current_" + SW_VERSION_ATTR) != software_info.get(SW_VERSION_ATTR) or \
+               current_software_info.get("current_" + SW_TITLE_ATTR) != software_info.get(SW_TITLE_ATTR):
+                new_version_available = True
 
-        if (firmware_info.get(FW_VERSION_ATTR) is not None and firmware_info.get(FW_VERSION_ATTR) != current_firmware_info.get("current_" + FW_VERSION_ATTR)) \
-                or (firmware_info.get(FW_TITLE_ATTR) is not None and firmware_info.get(FW_TITLE_ATTR) != current_firmware_info.get("current_" + FW_TITLE_ATTR)):
-            print("New firmware available!")
+        if new_version_available:
+            print("New software available!")
 
-            current_firmware_info[FW_STATE_ATTR] = "DOWNLOADING"
+            current_software_info[SW_STATE_ATTR] = "DOWNLOADING"
             sleep(1)
-            send_telemetry(current_firmware_info)
+            send_telemetry(current_software_info)
 
-            firmware_data = get_firmware(firmware_info)
+            software_data = get_software(software_info)
 
-            current_firmware_info[FW_STATE_ATTR] = "DOWNLOADED"
+            current_software_info[SW_STATE_ATTR] = "DOWNLOADED"
             sleep(1)
-            send_telemetry(current_firmware_info)
+            send_telemetry(current_software_info)
 
-            verification_result = verify_checksum(firmware_data, firmware_info.get(FW_CHECKSUM_ALG_ATTR), firmware_info.get(FW_CHECKSUM_ATTR))
+            verification_result = verify_checksum(software_data, software_info.get(SW_CHECKSUM_ALG_ATTR), software_info.get(SW_CHECKSUM_ATTR))
 
             if verification_result:
                 print("Checksum verified!")
-                current_firmware_info[FW_STATE_ATTR] = "VERIFIED"
+                current_software_info[SW_STATE_ATTR] = "VERIFIED"
                 sleep(1)
-                send_telemetry(current_firmware_info)
+                send_telemetry(current_software_info)
             else:
                 print("Checksum verification failed!")
-                current_firmware_info[FW_STATE_ATTR] = "FAILED"
+                current_software_info[SW_STATE_ATTR] = "FAILED"
                 sleep(1)
-                send_telemetry(current_firmware_info)
-                firmware_data = get_firmware(firmware_info)
+                send_telemetry(current_software_info)
+                software_data = get_software(software_info)
                 continue
 
-            current_firmware_info[FW_STATE_ATTR] = "UPDATING"
+            current_software_info[SW_STATE_ATTR] = "UPDATING"
             sleep(1)
-            send_telemetry(current_firmware_info)
+            send_telemetry(current_software_info)
 
-            with open(firmware_info.get(FW_TITLE_ATTR), "wb") as firmware_file:
-                firmware_file.write(firmware_data)
+            with open(software_info.get(SW_TITLE_ATTR), "wb") as software_file:
+                software_file.write(software_data)
 
-            dummy_upgrade(current_firmware_info["current_" + FW_VERSION_ATTR], firmware_info.get(FW_VERSION_ATTR))
+            dummy_upgrade(current_software_info["current_" + SW_VERSION_ATTR], software_info.get(SW_VERSION_ATTR))
 
-            current_firmware_info = {
-                "current_" + FW_TITLE_ATTR: firmware_info.get(FW_TITLE_ATTR),
-                "current_" + FW_VERSION_ATTR: firmware_info.get(FW_VERSION_ATTR),
-                FW_STATE_ATTR: "UPDATED"
+            current_software_info = {
+                "current_" + SW_TITLE_ATTR: software_info.get(SW_TITLE_ATTR),
+                "current_" + SW_VERSION_ATTR: software_info.get(SW_VERSION_ATTR),
+                SW_STATE_ATTR: "UPDATED"
             }
             sleep(1)
-            send_telemetry(current_firmware_info)
-        sleep(1)
+            send_telemetry(current_software_info)
+        sleep(10)  # Attendre 10 secondes avant de vérifier à nouveau

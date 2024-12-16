@@ -6,6 +6,7 @@ After=network.target
 WorkingDirectory=/opt/bask-e
 ExecStart=/usr/bin/python3 /opt/bask-e/updater.py
 Restart=on-failure
+User=root
 
 [Install]
 WantedBy=multi-user.target

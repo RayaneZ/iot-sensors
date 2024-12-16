@@ -1,77 +1,47 @@
 #!/bin/bash
 
-# Fonction pour vérifier si Jetpack est installé
-check_jetpack_installed() {
-    if [ -f "/etc/nv_tegra_release" ]; then
-        echo "Jetpack est déjà installé."
-        return 0
-    else
-        echo "Jetpack n'est pas installé. Veuillez installer Jetpack avant de continuer."
-        echo "Vous pouvez télécharger Jetpack via NVIDIA SDK Manager : https://developer.nvidia.com/embedded/jetpack"
-        exit 1
-    fi
-}
+# Check if running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "Please run as root"
+    exit 1
+fi
 
-# Vérifie si Jetpack est installé
-check_jetpack_installed
-
-# Met à jour les paquets
+# Update packages
 if [ -x "$(command -v apt)" ]; then
-    echo "Mise à jour des paquets..."
-    sudo apt update && sudo apt upgrade -y
+    echo "Updating packages..."
+    apt update && apt upgrade -y
 else
-    echo "apt n'est pas disponible sur ce système."
+    echo "apt is not available on this system."
     exit 1
 fi
 
-# Installe Python et pip si nécessaire
-if ! [ -x "$(command -v python3)" ]; then
-    echo "Installation de Python3 et pip..."
-    sudo apt install python3 python3-pip -y
-else
-    echo "Python3 est déjà installé."
-fi
+# Install required packages
+echo "Installing required packages..."
+apt install -y python3 python3-pip docker.io docker-compose
 
-# Installe les bibliothèques nécessaires avec pip
-if [ -x "$(command -v pip3)" ]; then
-    echo "Installation des bibliothèques Python nécessaires..."
-    pip3 install --upgrade pip
-    pip3 install opencv-python imutils pyzbar flask python-dotenv Jetson.GPIO
-else
-    echo "pip3 n'est pas disponible, veuillez vérifier l'installation de Python."
-    exit 1
-fi
+# Install Python requirements
+echo "Installing Python requirements..."
+pip3 install -r requirements.txt
 
-# Configuration des droits pour Jetson.GPIO
-if [ -d "/sys/class/gpio" ]; then
-    echo "Configuration des permissions pour Jetson.GPIO..."
-    sudo groupadd -f gpio
-    sudo usermod -aG gpio $USER
-    sudo chmod -R 770 /sys/class/gpio
-    echo "Veuillez redémarrer votre session ou exécuter 'newgrp gpio' pour appliquer les changements."
-fi
-
-# Installe OpenCV et les dépendances CUDA pour Jetson
-echo "Installation des dépendances OpenCV pour Jetson..."
-sudo apt install libopencv-dev python3-opencv -y
-
-# Crée le répertoire d'installation si nécessaire
+# Create installation directory if needed
 if [ ! -d "/opt/bask-e" ]; then
-    echo "Création du répertoire d'installation..."
-    sudo mkdir -p /opt/bask-e
+    echo "Creating installation directory..."
+    mkdir -p /opt/bask-e
 fi
 
-# Copie les fichiers dans le répertoire d'installation
-echo "Copie des fichiers dans le répertoire d'installation..."
-sudo cp -r bask-e/ /opt/bask-e/
+# Enable and start Docker service
+systemctl enable docker
+systemctl start docker
 
-# Configure les services système pour l'OTA
-echo "Configuration des services système pour l'OTA..."
-sudo cp services/etc/systemd/system/* /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable qrscan.service scale.service ota_update.service
-sudo systemctl start qrscan.service scale.service ota_update.service
+# Copy files to installation directory
+echo "Copying files to installation directory..."
+cp -r * /opt/bask-e/
 
-# Redémarre les services pour appliquer les changements
-echo "Redémarrage des services pour appliquer les changements..."
-sudo systemctl restart qrscan.service scale.service ota_update.service
+# Configure system services
+echo "Configuring system services..."
+cp services/etc/systemd/system/* /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable ota_update.service app.service
+systemctl start ota_update.service app.service
+
+echo "Installation completed successfully!"

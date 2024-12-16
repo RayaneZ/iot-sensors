@@ -1,0 +1,12 @@
+[Unit]
+Description=Service balance
+After=network.target ota_update.service
+Requires=docker.service
+
+[Service]
+WorkingDirectory=/opt/bask-e
+ExecStart=/usr/local/bin/docker-compose -f /opt/bask-e/docker-compose.yml up app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
