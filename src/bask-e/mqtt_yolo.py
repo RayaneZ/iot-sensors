@@ -1,101 +1,124 @@
 import cv2
 import numpy as np
+import json
 from elements.yolo import OBJ_DETECTION
 import paho.mqtt.client as mqtt
-import json
 
+# ---------------- Configuration ----------------
+
+# UI Display Control
 SHOW_UI = False
 
-Object_classes = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
-                'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
-                'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
-                'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
-                'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
-                'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
-                'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
-                'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
-                'hair drier', 'toothbrush' ]
+# Classes et couleurs d'objets
+OBJECT_CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+                  'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+                  'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+                  'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+                  'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+                  'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+                  'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+                  'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+                  'hair drier', 'toothbrush']
 
-Object_colors = list(np.random.rand(80,3)*255)
-Object_detector = OBJ_DETECTION('weights/yolov5s.pt', Object_classes)
+OBJECT_COLORS = np.random.randint(0, 255, size=(len(OBJECT_CLASSES), 3), dtype="uint8")
 
-refProduit = []
-MQTT_BROKER = "localhost"  # Remplacez par l'adresse IP du broker si nécessaire
+# YOLO Object Detector
+OBJECT_DETECTOR = OBJ_DETECTION('weights/yolov5s.pt', OBJECT_CLASSES)
+
+# MQTT Configuration
+MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC_READ = "camera/objects/detected"
-MQTT_TOPIC_PAYMENT_MODE = "camera/payment_mode"
-mqtt_client = mqtt.Client()
-try:
-    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-    print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
-except Exception as e:
-    print(f"Impossible de se connecter au broker MQTT : {e}")
-    exit(1)
 
-def gstreamer_pipeline(
-    capture_width=1920,
-    capture_height=1080,
-    display_width=960,
-    display_height=540,
-    framerate=10,
-    flip_method=2,
-):
+# ---------------- Initialisation ----------------
+
+def initialize_mqtt():
+    """Initialise et connecte le client MQTT."""
+    client = mqtt.Client()
+    try:
+        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
+    except Exception as e:
+        print(f"Erreur de connexion MQTT : {e}")
+        exit(1)
+    return client
+
+def gstreamer_pipeline(capture_width=1920, capture_height=1080, display_width=960,
+                       display_height=540, framerate=10, flip_method=2):
+    """Retourne la pipeline GStreamer pour la capture vidéo."""
     return (
         "nvarguscamerasrc ! "
-        "video/x-raw(memory:NVMM), "
-        "width=(int)%d, height=(int)%d, "
+        "video/x-raw(memory:NVMM), width=(int)%d, height=(int)%d, "
         "format=(string)NV12, framerate=(fraction)%d/1 ! "
         "nvvidconv flip-method=%d ! "
         "video/x-raw, width=(int)%d, height=(int)%d, format=(string)BGRx ! "
-        "videoconvert ! "
-        "video/x-raw, format=(string)BGR ! appsink"
-        % (
-            capture_width,
-            capture_height,
-            framerate,
-            flip_method,
-            display_width,
-            display_height,
-        )
+        "videoconvert ! video/x-raw, format=(string)BGR ! appsink"
+        % (capture_width, capture_height, framerate, flip_method, display_width, display_height)
     )
 
-# To flip the image, modify the flip_method parameter (0 and 2 are the most common)
+# ---------------- Fonctions Principales ----------------
 
-cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
-if cap.isOpened():
+def draw_detections(frame, detections):
+    """Dessine les détections d'objets sur le frame."""
+    for obj in detections:
+        label = obj['label']
+        score = obj['score']
+        [(xmin, ymin), (xmax, ymax)] = obj['bbox']
+        color = OBJECT_COLORS[OBJECT_CLASSES.index(label)].tolist()
+        
+        cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color, 2)
+        cv2.putText(frame, f'{label} ({score:.2f})', (xmin, ymin - 5), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.75, color, 1, cv2.LINE_AA)
+    return frame
+
+def process_frame(frame, mqtt_client):
+    """Traite un frame vidéo : détecte les objets et publie sur MQTT."""
+    detections = OBJECT_DETECTOR.detect(frame)
+    mqtt_payload = json.dumps(detections, indent=4, ensure_ascii=False)
+    mqtt_client.publish(MQTT_TOPIC_READ, mqtt_payload)
+    return detections
+
+# ---------------- Boucle Principale ----------------
+
+def main():
+    """Boucle principale : acquisition vidéo, traitement et affichage."""
+    mqtt_client = initialize_mqtt()
+    cap = cv2.VideoCapture(gstreamer_pipeline(flip_method=0), cv2.CAP_GSTREAMER)
+
+    if not cap.isOpened():
+        print("Impossible d'ouvrir la caméra.")
+        return
+
     if SHOW_UI:
-        window_handle = cv2.namedWindow("CSI Camera", cv2.WINDOW_AUTOSIZE)
-    
-    while True:
-        if SHOW_UI and cv2.getWindowProperty("CSI Camera", 0) < 0:
-            break
-            
-        ret, frame = cap.read()
-        if ret:
-            # detection process
-            objs = Object_detector.detect(frame)
-            json_data = json.dumps(objs, indent=4, ensure_ascii=False)
+        cv2.namedWindow("CSI Camera", cv2.WINDOW_AUTOSIZE)
+
+    try:
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                print("Erreur de lecture vidéo.")
+                break
+
+            # Détection et traitement
+            detections = process_frame(frame, mqtt_client)
             
             if SHOW_UI:
-                # plotting
-                for obj in objs:
-                    label = obj['label']
-                    score = obj['score']
-                    [(xmin,ymin),(xmax,ymax)] = obj['bbox']
-                    color = Object_colors[Object_classes.index(label)]
-                    frame = cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), color, 2) 
-                    frame = cv2.putText(frame, f'{label} ({str(score)})', (xmin,ymin), cv2.FONT_HERSHEY_SIMPLEX , 0.75, color, 1, cv2.LINE_AA)
-            
-            mqtt_client.publish(MQTT_TOPIC_READ, json.dumps(objs, indent=4, ensure_ascii=False))
+                frame = draw_detections(frame, detections)
+                cv2.imshow("CSI Camera", frame)
 
+                # Quitter avec la touche 'q'
+                if cv2.waitKey(30) & 0xFF == ord('q'):
+                    break
+    except KeyboardInterrupt:
+        print("Arrêt par l'utilisateur.")
+
+    finally:
+        # Libération des ressources
+        cap.release()
         if SHOW_UI:
-            cv2.imshow("CSI Camera", frame)
-            keyCode = cv2.waitKey(30)
-            if keyCode == ord('q'):
-                break
-        
-    cap.release()
-    if SHOW_UI:
-        cv2.destroyAllWindows()
-else:
-    print("Unable to open camera")
+            cv2.destroyAllWindows()
+        print("Programme terminé proprement.")
+
+# ---------------- Exécution ----------------
+if __name__ == "__main__":
+    main()

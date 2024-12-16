@@ -1,21 +1,21 @@
 from requests import post
 from time import sleep
 import threading
-from flask import Flask, jsonify
 import paho.mqtt.client as mqtt
-
-app = Flask(__name__)
-health_check_active = True
 
 # Configuration MQTT
 MQTT_BROKER = "localhost"
 MQTT_PORT = 1883
 MQTT_TOPIC_STATUS = "system/health/status"
 
-# Variables globales MQTT
+# Variables globales
+health_check_active = True
 mqtt_client = mqtt.Client()
 
 def collect_required_data():
+    """
+    Collecte les paramètres de configuration pour ThingsBoard.
+    """
     config = {
         "host": "iot-5etoiles.bnf.sigl.epita.fr",
         "token": "muOVFVkq5YWhvpGoSmJq",
@@ -25,14 +25,24 @@ def collect_required_data():
     return config
 
 def get_auth_token(config):
+    """
+    Récupère le token d'authentification via une requête HTTP.
+    """
     response = post(f"https://{config['host']}/api/auth/login",
-                   json={
-                       "username": config["username"],
-                       "password": config["password"]
-                   })
-    return response.json().get("token")
+                    json={
+                        "username": config["username"],
+                        "password": config["password"]
+                    })
+    if response.status_code == 200:
+        return response.json().get("token")
+    else:
+        print("Erreur : Impossible de récupérer le token d'authentification.")
+        exit(1)
 
 def send_online_status(config, auth_token):
+    """
+    Envoie périodiquement le statut 'online' via HTTP et MQTT.
+    """
     global health_check_active
     while True:
         if health_check_active:
@@ -44,30 +54,61 @@ def send_online_status(config, auth_token):
             
             # Publication MQTT
             mqtt_client.publish(MQTT_TOPIC_STATUS, "online")
+            print("Statut envoyé : online")
         
         sleep(10)
 
-@app.route('/health/enable', methods=['POST'])
 def enable_health_check():
+    """
+    Active le health check.
+    """
     global health_check_active
     health_check_active = True
-    
-    # Publication MQTT
     mqtt_client.publish(MQTT_TOPIC_STATUS, "health_check_enabled")
-    print("Publié sur MQTT : health_check_enabled")
-    
-    return jsonify({"status": "Health check enabled"})
+    print("Health check activé et publié sur MQTT.")
 
-@app.route('/health/disable', methods=['POST']) 
 def disable_health_check():
+    """
+    Désactive le health check.
+    """
     global health_check_active
     health_check_active = False
-
-    # Publication MQTT
     mqtt_client.publish(MQTT_TOPIC_STATUS, "health_check_disabled")
-    print("Publié sur MQTT : health_check_disabled")
-    
-    return jsonify({"status": "Health check disabled"})
+    print("Health check désactivé et publié sur MQTT.")
+
+def mqtt_setup():
+    """
+    Configure la connexion MQTT.
+    """
+    try:
+        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.loop_start()
+        print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
+    except Exception as e:
+        print(f"Erreur de connexion au broker MQTT : {e}")
+        exit(1)
+
+def user_input_handler():
+    """
+    Gère les commandes utilisateur depuis la console pour activer/désactiver le health check.
+    """
+    global health_check_active
+    print("\nCommandes disponibles :")
+    print("  1. 'enable'  - Activer le health check")
+    print("  2. 'disable' - Désactiver le health check")
+    print("  3. 'quit'    - Quitter le programme")
+
+    while True:
+        user_input = input("\nEntrez une commande : ").strip().lower()
+        if user_input == "enable":
+            enable_health_check()
+        elif user_input == "disable":
+            disable_health_check()
+        elif user_input == "quit":
+            print("Arrêt du programme...")
+            break
+        else:
+            print("Commande inconnue. Veuillez utiliser 'enable', 'disable' ou 'quit'.")
 
 if __name__ == '__main__':
     # Collecter la configuration
@@ -77,18 +118,12 @@ if __name__ == '__main__':
     auth_token = get_auth_token(config)
     
     # Connexion au broker MQTT
-    try:
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        mqtt_client.loop_start()
-        print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
-    except Exception as e:
-        print(f"Erreur de connexion au broker MQTT : {e}")
-        exit(1)
+    mqtt_setup()
     
     # Lancer le thread de statut en ligne
     status_thread = threading.Thread(target=send_online_status, args=(config, auth_token))
     status_thread.daemon = True
     status_thread.start()
     
-    # Démarrer le serveur Flask
-    app.run(host='0.0.0.0', port=5001)
+    # Gérer les commandes utilisateur
+    user_input_handler()

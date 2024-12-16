@@ -1,14 +1,11 @@
 from py532lib.i2c import Pn532_i2c
 from py532lib.frame import Pn532_frame
 from py532lib.constants import *
-from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import json
 import threading
 import time
 import paho.mqtt.client as mqtt
-
-app = Flask(__name__)
 
 # Initialize NFC reader
 pn = Pn532_i2c()
@@ -89,37 +86,6 @@ def continuous_read():
             time.sleep(0.1)  # Small delay to prevent CPU overuse
             continue
 
-
-@app.route('/api/nfc/read', methods=['GET'])
-def read_nfc():
-    """Endpoint API pour lire les données NFC"""
-    global payment_mode
-    if last_read['timestamp'] is None:
-        return jsonify({
-            'success': True,
-            'data': None,
-            'timestamp': None,
-            'payment_mode': payment_mode
-        })
-
-    # Check if last read is within 1 minute
-    if datetime.now() - last_read['timestamp'] > timedelta(minutes=1):
-        payment_mode = False  # Désactiver le mode paiement si les données sont trop vieilles
-        return jsonify({
-            'success': True,
-            'data': None,
-            'timestamp': None,
-            'payment_mode': payment_mode
-        })
-
-    return jsonify({
-        'success': True,
-        'data': last_read['data'],
-        'timestamp': last_read['timestamp'].isoformat(),
-        'payment_mode': payment_mode
-    })
-
-
 if __name__ == '__main__':
     # Connexion au broker MQTT
     try:
@@ -133,5 +99,3 @@ if __name__ == '__main__':
     read_thread = threading.Thread(target=continuous_read, daemon=True)
     read_thread.start()
 
-    # Lancer l'API Flask
-    app.run(host='0.0.0.0', port=5000)

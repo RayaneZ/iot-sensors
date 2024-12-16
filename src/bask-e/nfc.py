@@ -1,13 +1,11 @@
 from py532lib.i2c import *
 from py532lib.frame import *
 from py532lib.constants import *
-from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import json
 import threading
 import time
 
-app = Flask(__name__)
 
 # Initialize NFC reader
 pn = Pn532_i2c()
@@ -45,32 +43,7 @@ def continuous_read():
             time.sleep(0.1)  # Small delay to prevent CPU overuse
             continue
 
-@app.route('/api/nfc/read', methods=['GET'])
-def read_nfc():
-    if last_read['timestamp'] is None:
-        return jsonify({
-            'success': True,
-            'data': None,
-            'timestamp': None
-        })
-    
-    # Check if last read is within 1 minute
-    if datetime.now() - last_read['timestamp'] > timedelta(minutes=1):
-        return jsonify({
-            'success': True,
-            'data': None,
-            'timestamp': None
-        })
-        
-    return jsonify({
-        'success': True,
-        'data': last_read['data'],
-        'timestamp': last_read['timestamp'].isoformat()
-    })
-
 if __name__ == '__main__':
     # Start the continuous reading in a separate thread
     read_thread = threading.Thread(target=continuous_read, daemon=True)
     read_thread.start()
-    
-    app.run(host='0.0.0.0', port=5000)

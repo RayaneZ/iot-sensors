@@ -3,8 +3,37 @@ import json
 import time
 import sys
 import paho.mqtt.client as mqtt
-from time import sleep
 
+# ------------------ Configuration ------------------
+THINGSBOARD_BASE_URL = "https://iot-5etoiles.bnf.sigl.epita.fr"
+TOKEN = "muOVFVkq5YWhvpGoSmJq"
+MQTT_BROKER = "localhost"
+MQTT_PORT = 1883
+
+# URLs Thingsboard
+ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
+TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/telemetry"
+PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
+
+# ------------------ Fonctions Utilitaires ------------------
+def log(message, level="INFO"):
+    """Affiche un message avec un niveau de priorité."""
+    print(f"[{level}] {message}")
+
+def send_request(url, method="GET", headers=None, payload=None):
+    """Gère les requêtes HTTP avec gestion des exceptions."""
+    try:
+        if method == "GET":
+            response = requests.get(url, headers=headers)
+        elif method == "POST":
+            response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        log(f"Erreur HTTP : {e}", "ERROR")
+        return None
+
+# ------------------ Classe ShoppingCart ------------------
 class ShoppingCart:
     def __init__(self, token):
         self.token = token
@@ -14,204 +43,129 @@ class ShoppingCart:
         self.load_product_references()
 
     def load_product_references(self):
-        """Récupère les produits référentiels depuis Thingsboard"""
-        url = "https://iot-5etoiles.bnf.sigl.epita.fr/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
-        headers = {
-            "Authorization": f"Bearer {self.token}"
-        }
-        try:
-            # Effectuer la requête GET pour récupérer les données des produits
-            response = requests.get(url, headers=headers)
-            response.raise_for_status()  # Vérifie si la réponse est correcte (200 OK)
-            # Extraire et stocker les produits référentiels
-            data = response.json()
+        """Charge les produits de référence depuis Thingsboard."""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        data = send_request(ATTRIBUTE_URL, "GET", headers)
+        if data:
             self.product_references = [item['value'] for item in data]
-            print("Produits récupérés depuis Thingsboard :")
-            print(self.product_references)
-        except requests.exceptions.RequestException as e:
-            print(f"Erreur lors de la récupération des produits depuis Thingsboard : {str(e)}")
+            log(f"Produits chargés : {self.product_references}")
 
     def get_product_by_id(self, product_id):
-        """Récupère un produit à partir de son ID dans le référentiel"""
-        for product in self.product_references:
-            if product['id'] == product_id:
-                return product
-        return None
+        """Récupère un produit par ID."""
+        return next((p for p in self.product_references if p['id'] == product_id), None)
 
     def update_cart(self, product_id, action):
-        """Met à jour le contenu du panier en ajoutant ou retirant un produit"""
+        """Ajoute ou retire un produit dans le panier."""
         product = self.get_product_by_id(product_id)
         if product:
             if action == 'add':
                 self.product_list.append(product)
-            elif action == 'remove':
+                log(f"Produit ajouté : {product['name']}")
+            elif action == 'remove' and product in self.product_list:
                 self.product_list.remove(product)
-        
-        # Mise à jour du prix total et envoi des données à Thingsboard
-        self.calculate_total_price()
-        self.send_telemetry()
+                log(f"Produit retiré : {product['name']}")
+            self.calculate_total_price()
+            self.send_telemetry()
 
     def calculate_total_price(self):
-        """Calcule le prix total en sommant les prix des produits du panier"""
-        self.total_price = sum(product['price'] for product in self.product_list)
+        """Calcule le prix total du panier."""
+        self.total_price = sum(p['price'] for p in self.product_list)
 
     def send_telemetry(self):
-        """Envoie les données du panier à Thingsboard"""
-        url = "https://iot-5etoiles.bnf.sigl.epita.fr/api/v1/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/telemetry"
+        """Envoie les données du panier à Thingsboard."""
         payload = {
-            "productList": [{"id": p['id'], "name": p['name'], "price": p['price'], "weight": p['weight'], "category": p['category']} for p in self.product_list],
+            "productList": [{
+                "id": p['id'], "name": p['name'], "price": p['price'], "weight": p['weight'], "category": p['category']
+            } for p in self.product_list],
             "totalPrice": self.total_price
         }
-        try:
-            response = requests.post(url, json=payload, headers={"Authorization": f"Bearer {self.token}"})
-            response.raise_for_status()  # Vérifie si la requête est réussie
-            print("Données envoyées à Thingsboard avec succès")
-        except requests.exceptions.RequestException as e:
-            print(f"Erreur lors de l'envoi des données à Thingsboard : {str(e)}")
+        headers = {"Authorization": f"Bearer {self.token}"}
+        send_request(TELEMETRY_URL, "POST", headers, payload)
+        log("Données du panier envoyées.")
 
     def send_payment_status(self, is_paid):
-        """Envoie l'état de paiement à Thingsboard"""
-        url = "https://iot-5etoiles.bnf.sigl.epita.fr/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
-        payload = {
-            "isPaid": is_paid
-        }
+        """Envoie l'état de paiement."""
+        headers = {"Authorization": f"Bearer {self.token}"}
+        payload = {"isPaid": is_paid}
+        send_request(PAYMENT_STATUS_URL, "POST", headers, payload)
+        log(f"Statut de paiement : {'Payé' if is_paid else 'Non payé'}")
+
+# ------------------ Classe MQTTHandler ------------------
+class MQTTHandler:
+    def __init__(self, cart):
+        self.cart = cart
+        self.client = mqtt.Client()
+        self.configure_client()
+
+    def configure_client(self):
+        """Configuration du client MQTT."""
         try:
-            response = requests.post(url, json=payload, headers={"Authorization": f"Bearer {self.token}"})
-            response.raise_for_status()  # Vérifie si la requête est réussie
-            print("État de paiement envoyé à Thingsboard avec succès")
-        except requests.exceptions.RequestException as e:
-            print(f"Erreur lors de l'envoi de l'état de paiement à Thingsboard : {str(e)}")
+            self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
+            log(f"Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
+        except Exception as e:
+            log(f"Erreur de connexion MQTT : {e}", "ERROR")
+            sys.exit(1)
 
-if __name__ == '__main__':
-    # Token pour accéder à Thingsboard
-    token = "muOVFVkq5YWhvpGoSmJq"  # Token d'authentification Thingsboard
-    
-    # Configuration MQTT
-    MQTT_BROKER = "localhost"
-    MQTT_PORT = 1883
-    mqtt_client = mqtt.Client()
+        # Abonnements
+        self.client.message_callback_add("nfc/card/read", self.on_nfc_message)
+        self.client.message_callback_add("scale/weight_change", self.on_weight_change)
+        self.client.message_callback_add("camera/objects/detected", self.on_objects_detected)
+        self.client.subscribe([
+            ("nfc/card/read", 0),
+            ("scale/weight_change", 0),
+            ("camera/objects/detected", 0)
+        ])
 
-    # Connexion au broker MQTT
-    try:
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
-    except Exception as e:
-        print(f"Impossible de se connecter au broker MQTT : {e}")
-        sys.exit(1)
+    # ------------ Callbacks ------------
+    def on_nfc_message(self, client, userdata, message):
+        data = self.parse_message(message)
+        if data.get('payment_mode') and self.cart.total_price > 0:
+            log(f"Paiement de {self.cart.total_price}€ effectué")
+            self.cart.product_list = []
+            self.cart.total_price = 0
+            self.cart.send_telemetry()
+            self.cart.send_payment_status(True)
+        else:
+            self.cart.send_payment_status(False)
 
-    # Initialisation du panier
-    cart = ShoppingCart(token)
+    def on_weight_change(self, client, userdata, message):
+        data = self.parse_message(message)
+        delta = data.get('delta', 0)
+        if abs(delta) > 0:
+            for product in self.cart.product_references:
+                if abs(abs(delta) - product['weight']) <= 5:
+                    action = 'add' if delta > 0 else 'remove'
+                    self.cart.update_cart(product['id'], action)
+                    break
 
-    def on_nfc_message(client, userdata, message):
-        """Callback pour les messages NFC"""
+    def on_objects_detected(self, client, userdata, message):
+        objects = self.parse_message(message)
+        log("Objets détectés :")
+        for obj in objects:
+            log(f"- {obj['label']} (Confiance: {obj['score']})")
+
+    # ------------ Utilitaires ------------
+    @staticmethod
+    def parse_message(message):
         try:
-            data = json.loads(message.payload)
-            if data.get('payment_mode'):
-                print("Carte de paiement détectée")
-                # Déclencher le processus de paiement
-                if cart.total_price > 0:
-                    print(f"Paiement de {cart.total_price}€ initié")
-                    # Réinitialiser le panier après paiement
-                    cart.product_list = []
-                    cart.total_price = 0
-                    cart.send_telemetry()
-                    
-                    # Envoi de l'état de paiement à Thingsboard
-                    cart.send_payment_status(True)  # Ajout de l'envoi de l'état de paiement
-            else:
-                cart.send_payment_status(False)  # Envoi de l'état de paiement si non payé
+            return json.loads(message.payload)
         except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
+            log(f"Erreur de décodage JSON : {e}", "ERROR")
+            return {}
 
-    def on_scale_message(client, userdata, message):
-        """Callback pour les messages de la balance"""
+    def start(self):
+        """Démarre la boucle MQTT."""
+        self.client.loop_start()
         try:
-            data = json.loads(message.payload)
-            current_weight = data.get('weight', 0)
-            print(f"Poids actuel: {current_weight}g")
-        except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            log("Arrêt du programme.")
+            self.client.loop_stop()
+            self.client.disconnect()
 
-    def on_weight_change(client, userdata, message):
-        """Callback pour les changements de poids"""
-        try:
-            data = json.loads(message.payload)
-            delta = data.get('delta', 0)
-            current_weight = data.get('current_weight', 0)
-            
-            # Recherche du produit correspondant au delta de poids
-            if abs(delta) > 0:  # Si changement significatif
-                for product in cart.product_references:
-                    # Tolérance de 5g pour la détection
-                    if abs(abs(delta) - product['weight']) <= 5:
-                        if delta > 0:  # Ajout de produit
-                            cart.update_cart(product['id'], 'add')
-                            print(f"Produit ajouté: {product['name']}")
-                        else:  # Retrait de produit
-                            cart.update_cart(product['id'], 'remove')
-                            print(f"Produit retiré: {product['name']}")
-                        break
-        except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
-
-    def on_payment_mode(client, userdata, message):
-        """Callback pour le mode paiement"""
-        try:
-            data = json.loads(message.payload)
-            payment_mode = data.get('payment_mode', False)
-            if payment_mode:
-                print("Mode paiement activé")
-            else:
-                print("Mode paiement désactivé") 
-        except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
-
-    def on_weight_mode(client, userdata, message):
-        """Callback pour le mode pesée"""
-        try:
-            data = json.loads(message.payload)
-            weight_mode = data.get('weight_mode', False)
-            if weight_mode:
-                print("Mode pesée activé")
-            else:
-                print("Mode pesée désactivé")
-        except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
-
-    def on_objects_detected(client, userdata, message):
-        """Callback pour les objets détectés par YOLO"""
-        try:
-            objects = json.loads(message.payload)
-            print("Objets détectés:")
-            for obj in objects:
-                print(f"- {obj['label']} (confiance: {obj['score']})")
-        except json.JSONDecodeError as e:
-            print(f"Erreur de décodage JSON: {e}")
-
-    # Souscription aux topics MQTT
-    mqtt_client.subscribe("nfc/card/read")
-    mqtt_client.subscribe("nfc/payment_mode") 
-    mqtt_client.subscribe("scale/weight")
-    mqtt_client.subscribe("scale/weight_change")
-    mqtt_client.subscribe("scale/weight_mode")
-    mqtt_client.subscribe("camera/objects/detected")
-
-    # Configuration des callbacks
-    mqtt_client.message_callback_add("nfc/card/read", on_nfc_message)
-    mqtt_client.message_callback_add("nfc/payment_mode", on_payment_mode)
-    mqtt_client.message_callback_add("scale/weight", on_scale_message)
-    mqtt_client.message_callback_add("scale/weight_change", on_weight_change)
-    mqtt_client.message_callback_add("scale/weight_mode", on_weight_mode)
-    mqtt_client.message_callback_add("camera/objects/detected", on_objects_detected)
-
-    # Démarrage de la boucle MQTT
-    mqtt_client.loop_start()
-
-    # Boucle principale
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Arrêt du programme...")
-        mqtt_client.loop_stop()
-        mqtt_client.disconnect()
+# ------------------ Main ------------------
+if __name__ == "__main__":
+    cart = ShoppingCart(TOKEN)
+    mqtt_handler = MQTTHandler(cart)
+    mqtt_handler.start()
