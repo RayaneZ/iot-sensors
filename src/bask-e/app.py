@@ -67,6 +67,7 @@ class ShoppingCart:
 
     def get_product_id_from_yolo_label(self, yolo_label):
         """Récupère l'ID du produit correspondant au label YOLO."""
+        log(f"Association de {yolo_label} avec {YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())}")
         return YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())
 
     def get_product_by_id(self, object_label):
