@@ -165,7 +165,7 @@ if __name__ == '__main__':
     initialize_mqtt()
 
     # Calibrer la balance
-    calibrate()
+    calibrate(hx)
 
     # Lancement de la boucle principale
     main_loop()
