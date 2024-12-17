@@ -25,7 +25,7 @@ previous_weight = 0  # Dernier poids enregistré
 # Initialisation des objets
 chip = None
 hx = None
-mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 # --------------------- Fonctions Utilitaires ---------------------
 
