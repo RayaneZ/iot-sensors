@@ -64,24 +64,31 @@ def tare_with_average(num_samples=10):
         print(f"Erreur lors de la tare : {e}")
         clean_and_exit()
 
-def calibrate():
-    """Calibrer la balance en fonction d'un objet de poids connu."""
-    readyCheck = input("Remove any items from scale. Press any key when ready.")
-    offset = hx.read_average()
-    print("Value at zero (offset): {}".format(offset))
-    hx.set_offset(offset)
-    print("Please place an item of known weight on the scale.")
 
-    readyCheck = input("Press any key to continue when ready.")
-    measured_weight = (hx.read_average()-hx.get_offset())
-    item_weight = input("Please enter the item's weight in grams.\n>")
-
-    try:
-        scale = int(measured_weight) / int(item_weight)
-        hx.set_scale(scale)
-        print("Scale adjusted for grams: {}".format(scale))
-    except ValueError:
-        print("Invalid item weight entered. Please enter a valid number.")
+def calibrate(scale: HX711):
+    # Remove any items from the scale
+    input("Remove any items from scale. Press Enter when ready.")
+    
+    # Measure the offset (zero value)
+    offset = scale.read_average()  # Get the average reading from HX711
+    print(f"Value at zero (offset): {offset}")
+    scale.set_offset(offset)  # Set the offset to zero
+    
+    # Ask user to place a known weight on the scale
+    input("Please place an item of known weight on the scale. Press Enter when ready.")
+    
+    # Measure the weight with the object on the scale
+    measured_weight = scale.read_average() - scale.get_offset()
+    
+    # Input the known weight in grams
+    item_weight = float(input("Please enter the item's weight in grams:\n> "))
+    
+    # Calculate the scale adjustment factor
+    scale_factor = measured_weight / item_weight
+    
+    # Set the scale based on the known weight
+    scale.set_scale(scale_factor)
+    print(f"Scale adjusted for grams: {scale_factor}")
 
 def on_connect(client, userdata, flags, rc):
     """Callback exécuté lors de la connexion au broker MQTT."""
