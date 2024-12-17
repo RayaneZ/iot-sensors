@@ -12,7 +12,7 @@ REFERENCE_UNIT = 1
 THRESHOLD = 10  # Seuil pour weight_mode en grammes
 
 # Configuration MQTT
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "mqtt.eclipse.org"
 MQTT_PORT = 1883
 MQTT_TOPIC_WEIGHT = "scale/weight"
 MQTT_TOPIC_WEIGHT_MODE = "scale/weight_mode"
