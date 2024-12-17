@@ -7,7 +7,7 @@ import paho.mqtt.client as mqtt
 # ------------------ Configuration ------------------
 THINGSBOARD_BASE_URL = "https://iot-5etoiles.bnf.sigl.epita.fr"
 TOKEN = "muOVFVkq5YWhvpGoSmJq"
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
 # URLs Thingsboard
@@ -100,6 +100,8 @@ class MQTTHandler:
     def configure_client(self):
         """Configuration du client MQTT."""
         try:
+            self.client.on_connect = self.on_connect
+            self.client.on_message = self.on_message
             self.client.connect(MQTT_BROKER, MQTT_PORT, 60)
             log(f"Connecté au broker MQTT {MQTT_BROKER}:{MQTT_PORT}")
         except Exception as e:
@@ -107,16 +109,34 @@ class MQTTHandler:
             sys.exit(1)
 
         # Abonnements
-        self.client.message_callback_add("nfc/card/read", self.on_nfc_message)
-        self.client.message_callback_add("scale/weight_change", self.on_weight_change)
-        self.client.message_callback_add("camera/objects/detected", self.on_objects_detected)
+        self.client.subscribe([
+            ("nfc/card/read", 0),
+            ("scale/weight_change", 0),
+            ("camera/objects/detected", 0)
+        ])
+        self.client.loop_start()
+
+    # ------------ Callbacks ------------
+    def on_connect(self, client, userdata, flags, rc):
+        """Callback appelé lors de la connexion au broker."""
+        log("Connecté au broker MQTT avec le code de résultat: {}".format(rc))
         self.client.subscribe([
             ("nfc/card/read", 0),
             ("scale/weight_change", 0),
             ("camera/objects/detected", 0)
         ])
 
-    # ------------ Callbacks ------------
+    def on_message(self, client, userdata, message):
+        """Callback appelé lors de la réception d'un message."""
+        topic = message.topic
+        log(f"Message reçu sur le topic {topic}: {message.payload.decode()}")
+        if topic == "nfc/card/read":
+            self.on_nfc_message(client, userdata, message)
+        elif topic == "scale/weight_change":
+            self.on_weight_change(client, userdata, message)
+        elif topic == "camera/objects/detected":
+            self.on_objects_detected(client, userdata, message)
+
     def on_nfc_message(self, client, userdata, message):
         data = self.parse_message(message)
         if data.get('payment_mode') and self.cart.total_price > 0:
@@ -153,19 +173,7 @@ class MQTTHandler:
             log(f"Erreur de décodage JSON : {e}", "ERROR")
             return {}
 
-    def start(self):
-        """Démarre la boucle MQTT."""
-        self.client.loop_start()
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            log("Arrêt du programme.")
-            self.client.loop_stop()
-            self.client.disconnect()
-
 # ------------------ Main ------------------
 if __name__ == "__main__":
     cart = ShoppingCart(TOKEN)
     mqtt_handler = MQTTHandler(cart)
-    mqtt_handler.start()
