@@ -15,7 +15,7 @@ pn.SAMconfigure()
 # mosquitto_sub -h localhost -t "nfc/payment_mode"
 
 # MQTT Configuration
-MQTT_BROKER = "localhost"  # Remplacez par l'adresse IP du broker si nécessaire
+MQTT_BROKER = "mqtt.eclipse.org"  # Remplacez par l'adresse IP du broker si nécessaire
 MQTT_PORT = 1883
 MQTT_TOPIC_READ = "nfc/card/read"
 MQTT_TOPIC_PAYMENT_MODE = "nfc/payment_mode"
