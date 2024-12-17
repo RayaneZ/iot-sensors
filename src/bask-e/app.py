@@ -12,7 +12,7 @@ MQTT_PORT = 1883
 
 # URLs Thingsboard
 ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
-TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/telemetry"
+TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
 PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
 
 # ------------------ Fonctions Utilitaires ------------------
@@ -39,6 +39,7 @@ class ShoppingCart:
         self.token = token
         self.product_references = []
         self.product_list = []
+        self.cart_error = False
         self.total_price = 0
         self.load_product_references()
 
@@ -77,7 +78,8 @@ class ShoppingCart:
             "productList": [{
                 "id": p['id'], "name": p['name'], "price": p['price'], "weight": p['weight'], "category": p['category']
             } for p in self.product_list],
-            "totalPrice": self.total_price
+            "totalPrice": self.total_price,
+            "cartError": self.cart_error
         }
         headers = {"Authorization": f"Bearer {self.token}"}
         send_request(TELEMETRY_URL, "POST", headers, payload)
@@ -138,11 +140,34 @@ class MQTTHandler:
                     self.cart.update_cart(product['id'], action)
                     break
 
-    def on_objects_detected(self, client, userdata, message):
-        objects = self.parse_message(message)
+    def on_objects_detected(self, client, userdata, message): # FIXME
+        data = self.parse_message(message)
+        objects = data.get('detections', [])
+        telemetry_status = False
+        validated_objects = []
+
         log("Objets détectés :")
         for obj in objects:
-            log(f"- {obj['label']} (Confiance: {obj['score']})")
+            label = obj['label']
+            score = obj['score']
+            # Vérifier si l'objet est dans le référentiel
+            product = next((p for p in self.cart.product_references if p['name'].lower() == label.lower()), None)
+            
+            if product:
+                obj['product_info'] = product
+                validated_objects.append(obj)
+                log(f"- {label} (Confiance: {score:.2f}) - Validé avec le produit: {product['name']}")
+            else:
+                telemetry_status = True
+                log(f"- {label} (Confiance: {score:.2f}) - Non trouvé dans le référentiel", "WARNING")
+
+        # Publier le résultat de la validation
+        validation_result = {
+            'detections': validated_objects,
+            'telemetry_status': telemetry_status,
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
+        }
+        self.client.publish('camera/objects/validated', json.dumps(validation_result, indent=4, ensure_ascii=False))
 
     # ------------ Utilitaires ------------
     @staticmethod
