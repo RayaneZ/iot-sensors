@@ -32,8 +32,6 @@ mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 def clean_and_exit():
     """Effectue un nettoyage propre et quitte le programme."""
     print("Nettoyage en cours...")
-    if chip:
-        chip.close()
     mqtt_client.disconnect()
     print("Programme arrêté proprement.")
     sys.exit()
