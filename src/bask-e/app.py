@@ -102,7 +102,7 @@ class ShoppingCart:
 class MQTTHandler:
     def __init__(self, cart):
         self.cart = cart
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self.client = mqtt.Client()
         self.configure_client()
 
     def configure_client(self):
@@ -124,7 +124,8 @@ class MQTTHandler:
 
     # ------------ Callbacks ------------
 
-    def on_connect(self, client, userdata, flags, rc):
+    @staticmethod
+    def on_connect(client, userdata, flags, rc):
         """Callback appelé lors de la connexion au broker."""
         log(f"Connecté au broker MQTT avec le code de résultat : {rc}")
 
