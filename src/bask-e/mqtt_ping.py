@@ -47,7 +47,7 @@ def send_online_status(config, auth_token):
             else:
                 print(f"Erreur lors de l'envoi du statut via HTTP : {response.status_code}")
         
-        sleep(4)
+        sleep(5)
 
 if __name__ == '__main__':
     # Collecter la configuration
