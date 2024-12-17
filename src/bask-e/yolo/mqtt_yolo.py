@@ -3,6 +3,7 @@ import numpy as np
 import json
 from elements.yolo import OBJ_DETECTION
 import paho.mqtt.client as mqtt
+from collections import Counter
 
 # ---------------- Configuration ----------------
 
@@ -74,7 +75,15 @@ def draw_detections(frame, detections):
 def process_frame(frame, mqtt_client):
     """Traite un frame vidéo : détecte les objets et publie sur MQTT."""
     detections = OBJECT_DETECTOR.detect(frame)
-    detections_str = [{k: str(v) for k, v in detection.items()} for detection in detections if detection['label'] in ['bottle', 'toothbrush', 'banana']]
+    
+    labels_of_interest = ['bottle', 'toothbrush', 'banana']
+
+    filtered_labels = [detection['label'] for detection in detections if detection['label'] in labels_of_interest]
+
+    label_counts = Counter(filtered_labels)
+
+    detections_str = [{"label" : l, "count" : c} for l, c in label_counts.items()]
+    
     mqtt_payload = json.dumps(detections_str)
     mqtt_client.publish(MQTT_TOPIC_READ, mqtt_payload)
     return detections
