@@ -67,7 +67,6 @@ def on_message(client, userdata, msg):
 def initialize_mqtt():
     """Connecte le client MQTT au broker."""
     try:
-        mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
         mqtt_client.on_connect = on_connect  # Ajout du callback on_connect
         mqtt_client.on_message = on_message    # Ajout du callback on_message
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
