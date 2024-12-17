@@ -28,6 +28,11 @@ def send_request(url, method="GET", headers=None, payload=None):
         elif method == "POST":
             response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()
+        if response.content:
+            return response.json()
+        else:
+            log("Réponse vide reçue du serveur.", "WARNING")
+            return None
         return response.json()
     except requests.exceptions.RequestException as e:
         log(f"Erreur HTTP : {e}", "ERROR")
@@ -88,6 +93,7 @@ class ShoppingCart:
     def send_payment_status(self, is_paid):
         """Envoie l'état de paiement."""
         headers = {"Authorization": f"Bearer {self.token}"}
+        is_paid = True
         payload = {"isPaid": is_paid}
         send_request(PAYMENT_STATUS_URL, "POST", headers, payload)
         log(f"Statut de paiement : {'Payé' if is_paid else 'Non payé'}")
