@@ -8,19 +8,13 @@ import paho.mqtt.client as mqtt
 # --------------------- Configuration ---------------------
 
 # Configuration de la balance
-REFERENCE_UNIT = 1
-THRESHOLD = 10  # Seuil pour weight_mode en grammes
+REFERENCE_UNIT = 1  # Unité de référence pour la balance
+THRESHOLD = 10  # Seuil pour détecter un poids significatif en grammes
 
 # Configuration MQTT
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
-MQTT_TOPIC_WEIGHT = "scale/weight"
-MQTT_TOPIC_WEIGHT_MODE = "scale/weight_mode"
-MQTT_TOPIC_WEIGHT_CHANGE = "scale/weight_change"
-
-# Variables globales
-weight_mode = False
-previous_weight = 0  # Dernier poids enregistré
+MQTT_TOPIC_WEIGHT = "scale/weight"  # Le seul canal pour publier le poids
 
 # Initialisation des objets
 chip = None
@@ -73,15 +67,10 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"Échec de connexion au broker MQTT, code : {rc}")
 
-def on_message(client, userdata, msg):
-    """Callback exécuté lors de la réception d'un message MQTT."""
-    print(f"Message reçu sur {msg.topic} : {msg.payload}")
-
 def initialize_mqtt():
     """Initialise et connecte le client MQTT."""
     try:
         mqtt_client.on_connect = on_connect
-        mqtt_client.on_message = on_message
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
     except Exception as e:
@@ -99,40 +88,6 @@ def read_weight():
     except Exception as e:
         print(f"Erreur lors de la lecture du poids : {e}")
         return 0
-
-def update_weight_mode(current_weight):
-    """Met à jour et publie le mode de détection de poids."""
-    global weight_mode
-    try:
-        new_weight_mode = current_weight > THRESHOLD
-
-        if new_weight_mode != weight_mode:
-            weight_mode = new_weight_mode
-            payload = json.dumps({
-                'weight_mode': weight_mode,
-                'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
-            })
-            mqtt_client.publish(MQTT_TOPIC_WEIGHT_MODE, payload)
-            print(f"Publié sur MQTT : weight_mode = {weight_mode}")
-    except Exception as e:
-        print(f"Erreur lors de la mise à jour du mode de poids : {e}")
-
-def check_weight_change(current_weight):
-    """Calcule et publie les changements de poids."""
-    global previous_weight
-    try:
-        delta = current_weight - previous_weight
-        payload = json.dumps({
-            'delta': delta,
-            'current_weight': current_weight,
-            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
-        })
-        mqtt_client.publish(MQTT_TOPIC_WEIGHT_CHANGE, payload)
-        print(f"Publié sur MQTT : delta = {delta}, poids = {current_weight} g")
-
-        previous_weight = current_weight
-    except Exception as e:
-        print(f"Erreur lors du calcul du changement de poids : {e}")
 
 def publish_weight(current_weight):
     """Publie le poids actuel via MQTT."""
@@ -155,10 +110,8 @@ def main_loop():
             # Lire le poids actuel
             current_weight = read_weight()
 
-            # Publier le poids et gérer les changements
+            # Publier le poids
             publish_weight(current_weight)
-            update_weight_mode(current_weight)
-            check_weight_change(current_weight)
 
             # Réinitialiser la balance pour économiser l'énergie
             hx.power_down()
