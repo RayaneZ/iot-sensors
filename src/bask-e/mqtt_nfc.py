@@ -1,5 +1,5 @@
-from py532lib.i2c import Pn532_i2c
-from py532lib.frame import Pn532_frame
+from py532lib.i2c import *
+from py532lib.frame import *
 from py532lib.constants import *
 from datetime import datetime, timedelta
 import json
