@@ -29,10 +29,7 @@ def get_auth_token(config):
     Récupère le token d'authentification via une requête HTTP.
     """
     response = post(f"https://{config['host']}/api/auth/login",
-                    json={
-                        "username": config["username"],
-                        "password": config["password"]
-                    })
+                    json={ "username": config["username"], "password": config["password"] })
     if response.status_code == 200:
         return response.json().get("token")
     else:
@@ -76,11 +73,29 @@ def disable_health_check():
     mqtt_client.publish(MQTT_TOPIC_STATUS, "health_check_disabled")
     print("Health check désactivé et publié sur MQTT.")
 
+def mqtt_on_connect(client, userdata, flags, rc):
+    """
+    Callback pour la gestion de la connexion MQTT.
+    """
+    print(f"Connecté au broker MQTT avec le code : {rc}")
+    if rc == 0:
+        print("Connexion réussie.")
+    else:
+        print(f"Erreur de connexion au broker MQTT : {rc}")
+
+def mqtt_on_publish(client, userdata, mid):
+    """
+    Callback pour la publication de message MQTT.
+    """
+    print(f"Message MQTT publié avec l'ID : {mid}")
+
 def mqtt_setup():
     """
     Configure la connexion MQTT.
     """
     try:
+        mqtt_client.on_connect = mqtt_on_connect
+        mqtt_client.on_publish = mqtt_on_publish
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
@@ -126,4 +141,4 @@ if __name__ == '__main__':
     status_thread.start()
     
     # Gérer les commandes utilisateur
-    user_input_handler()
+    #user_input_handler()
