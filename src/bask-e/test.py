@@ -1,36 +1,24 @@
 import paho.mqtt.client as mqtt
-import time
 
-# Callback lorsque le client se connecte au broker
-def on_connect(client, userdata, flags, rc):
-    print("Connecté avec le code de résultat: " + str(rc))
-    client.subscribe("test/topic")  # S'abonner à un topic
+# The callback for when the client receives a CONNACK response from the server.
+def on_connect(client, userdata, flags, reason_code, properties):
+    print(f"Connected with result code {reason_code}")
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
 
-# Callback lorsque le client reçoit un message
+# The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
-    print(f"Message reçu sur {msg.topic}: {msg.payload.decode()}")
+    print(msg.topic+" "+str(msg.payload))
 
-# Création d'un client MQTT
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqttc = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mqttc.on_connect = on_connect
+mqttc.on_message = on_message
 
-# Assignation des callbacks
-client.on_connect = on_connect
-client.on_message = on_message
+mqttc.connect("mqtt.eclipseprojects.io", 1883, 60)
 
-# Connexion au broker MQTT (remplacez par l'adresse de votre broker)
-client.connect("mqtt.eclipseprojects.io", 1883, 60)
-
-# Boucle pour traiter les messages
-client.loop_start()
-
-# Publier un message sur le topic
-client.publish("test/topic", "Hello MQTT!")
-
-# Garder le script en cours d'exécution
-try:
-    while True:
-        time.sleep(1)
-except KeyboardInterrupt:
-    print("Déconnexion...")
-    client.loop_stop()
-    client.disconnect()
+# Blocking call that processes network traffic, dispatches callbacks and
+# handles reconnecting.
+# Other loop*() functions are available that give a threaded interface and a
+# manual interface.
+mqttc.loop_forever()
