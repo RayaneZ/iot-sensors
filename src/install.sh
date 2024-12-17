@@ -7,7 +7,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Variables
-INSTALL_DIR="/opt/bask-e"
+INSTALL_DIR="/opt"
 SYSTEMD_DIR="/etc/systemd/system"
 
 # Crée le répertoire d'installation s'il n'existe pas
