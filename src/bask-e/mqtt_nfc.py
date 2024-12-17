@@ -95,7 +95,8 @@ if __name__ == '__main__':
         print(f"Impossible de se connecter au broker MQTT : {e}")
         exit(1)
 
+    continuous_read()
     # Démarrer la lecture continue dans un thread séparé
-    read_thread = threading.Thread(target=continuous_read, daemon=True)
-    read_thread.start()
+    #read_thread = threading.Thread(target=continuous_read, daemon=True)
+    #read_thread.start()
 
