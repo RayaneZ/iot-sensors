@@ -19,7 +19,7 @@ YOLO_LABELS_TO_PRODUCT_ID = {
 
 # URLs Thingsboard
 ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
-TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/telemetry"
+TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
 PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
 
 # ------------------ Fonctions Utilitaires ------------------
@@ -79,6 +79,7 @@ class ShoppingCart:
 
     def update_cart(self):#, object_label, action):
         """Ajoute ou retire un produit dans le panier."""
+        log("Mis à jour du panier dans thingsboard inshallah")
         #product = self.get_product_by_id(object_label)
         #if product:
         #    if self.cart_error:
@@ -102,6 +103,7 @@ class ShoppingCart:
 
     def send_telemetry(self):
         """Envoie les données du panier à Thingsboard."""
+        log("Envoi des données à thingsboard")
         payload = {
             "productList": [p for p in self.product_list],
             "totalPrice": self.total_price,
@@ -180,12 +182,12 @@ class MQTTHandler:
             self.cart.send_payment_status(False)
 
     def handle_weight_change(self, data):
+        log("Changement de poids détecté :")
         delta = data.get('delta', 0)
         for product in self.cart.product_references:
             if abs(abs(delta) - product['weight']) <= 5:
                 action = 'add' if delta > 0 else 'remove'
-                self.cart.update_cart()#product['id'], action)
-                break
+        self.cart.update_cart()#product['id'], action)        
 
     def handle_objects_detected(self, objects):
         log("Objets détectés :")
