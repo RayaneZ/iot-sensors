@@ -26,7 +26,7 @@ OBJECT_COLORS = np.random.randint(0, 255, size=(len(OBJECT_CLASSES), 3), dtype="
 OBJECT_DETECTOR = OBJ_DETECTION('weights/yolov5s.pt', OBJECT_CLASSES)
 
 # MQTT Configuration
-MQTT_BROKER = "mqtt.eclipseprojects.io"
+MQTT_BROKER = "mqtt.eclipseprojects.io"  # Nouveau broker MQTT
 MQTT_PORT = 1883
 MQTT_TOPIC_READ = "camera/objects/detected"
 
