@@ -19,7 +19,7 @@ MQTT_BROKER = "mqtt.eclipseprojects.io"  # Remplacez par l'adresse IP du broker 
 MQTT_PORT = 1883
 MQTT_TOPIC_READ = "nfc/card/read"
 MQTT_TOPIC_PAYMENT_MODE = "nfc/payment_mode"
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 # Global variables to store last read data and payment mode
 last_read = {
