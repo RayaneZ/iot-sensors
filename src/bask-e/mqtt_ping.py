@@ -47,7 +47,7 @@ def send_online_status(config, auth_token):
             else:
                 print(f"Erreur lors de l'envoi du statut via HTTP : {response.status_code}")
         
-        sleep(10)
+        sleep(4)
 
 if __name__ == '__main__':
     # Collecter la configuration
@@ -63,6 +63,6 @@ if __name__ == '__main__':
     
     # Le programme continue de tourner et envoie le statut toutes les 10 secondes.
     # Il n'y a plus de gestion des commandes utilisateur.
-    print("Le statut 'online' est envoyé toutes les 10 secondes.")
+    print("Le statut 'online' est envoyé toutes les 5 secondes.")
     while True:
         sleep(1)  # Reste actif sans faire d'autres actions
