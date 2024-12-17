@@ -4,6 +4,7 @@ import json
 import gpiod
 from hx711 import HX711
 import paho.mqtt.client as mqtt
+from threading import Event, Thread
 
 # --------------------- Configuration ---------------------
 
@@ -19,6 +20,7 @@ MQTT_TOPIC_WEIGHT = "scale/weight"
 # Variables globales
 weight_mode = False
 previous_weight = 0  # Dernier poids enregistré
+stop_thread = Event()  # Signal pour arrêter les threads
 
 # Initialisation des objets
 chip = None
@@ -31,6 +33,8 @@ def clean_and_exit():
     """Effectue un nettoyage propre et quitte le programme."""
     print("Nettoyage en cours...")
     try:
+        stop_thread.set()
+        mqtt_client.loop_stop()
         mqtt_client.disconnect()
     except Exception as e:
         print(f"Erreur lors de la déconnexion MQTT : {e}")
@@ -64,33 +68,6 @@ def tare_with_average(num_samples=10):
         print(f"Erreur lors de la tare : {e}")
         clean_and_exit()
 
-def calibrate(scale: HX711):
-    # Retirer tous les objets du capteur
-    input("Retirez tous les objets de la balance. Appuyez sur Entrée quand vous êtes prêt.")
-    
-    # Mesurer la valeur de l'offset (valeur zéro)
-    offset = scale.read_average()  # Obtenez la lecture moyenne depuis HX711
-    print(f"Valeur à zéro (offset) : {offset}")
-    scale.set_offset(offset)  # Applique l'offset
-    
-    # Demander à l'utilisateur de placer un objet de poids connu sur la balance
-    input("Veuillez placer un objet de poids connu sur la balance. Appuyez sur Entrée quand vous êtes prêt.")
-    
-    # Mesurer le poids avec l'objet sur la balance
-    measured_weight = scale.read_average() - scale.get_offset()
-    
-    # Demander à l'utilisateur d'entrer le poids connu en grammes
-    item_weight = float(input("Veuillez entrer le poids de l'objet en grammes :\n> "))
-    
-    # Calculer le facteur de calibration
-    scale_factor = measured_weight / item_weight
-    
-    # Définir l'unité de référence en fonction du facteur de calibration
-    scale.set_reference_unit_A(scale_factor)  # Applique le facteur de calibration
-    print(f"Balance ajustée pour les grammes avec le facteur : {scale_factor}")
-
-
-
 def on_connect(client, userdata, flags, rc):
     """Callback exécuté lors de la connexion au broker MQTT."""
     if rc == 0:
@@ -98,15 +75,10 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"Échec de connexion au broker MQTT, code : {rc}")
 
-def on_message(client, userdata, msg):
-    """Callback exécuté lors de la réception d'un message MQTT."""
-    print(f"Message reçu sur {msg.topic} : {msg.payload}")
-
 def initialize_mqtt():
     """Initialise et connecte le client MQTT."""
     try:
         mqtt_client.on_connect = on_connect
-        mqtt_client.on_message = on_message
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
     except Exception as e:
@@ -125,36 +97,26 @@ def read_weight():
         print(f"Erreur lors de la lecture du poids : {e}")
         return 0
 
-def publish_weight(current_weight):
-    """Publie le poids actuel via MQTT."""
-    try:
-        payload = json.dumps({
-            'weight': current_weight,
-            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
-        })
-        mqtt_client.publish(MQTT_TOPIC_WEIGHT, payload)
-        print(f"Publié sur MQTT : poids = {current_weight} g")
-    except Exception as e:
-        print(f"Erreur lors de la publication du poids : {e}")
+def publish_weight():
+    """Boucle continue pour lire et publier les poids via MQTT."""
+    global previous_weight
+    while not stop_thread.is_set():
+        current_weight = read_weight()
 
-# --------------------- Boucle Principale ---------------------
+        if abs(current_weight - previous_weight) >= THRESHOLD:
+            try:
+                payload = json.dumps({
+                    'weight': current_weight,
+                    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
+                })
+                msg_info = mqtt_client.publish(MQTT_TOPIC_WEIGHT, payload)
+                msg_info.wait_for_publish()
+                print(f"Publié sur MQTT : poids = {current_weight} g")
+                previous_weight = current_weight
+            except Exception as e:
+                print(f"Erreur lors de la publication du poids : {e}")
 
-def main_loop():
-    """Boucle principale pour lire et publier les poids."""
-    try:
-        while True:
-            # Lire le poids actuel
-            current_weight = read_weight()
-
-            # Publier le poids
-            publish_weight(current_weight)
-
-            # Réinitialiser la balance pour économiser l'énergie
-            hx.power_down()
-            hx.power_up()
-            time.sleep(0.5)
-    except (KeyboardInterrupt, SystemExit):
-        clean_and_exit()
+        time.sleep(0.5)  # Pause entre les lectures pour éviter les envois excessifs
 
 # --------------------- Programme Principal ---------------------
 
@@ -165,9 +127,13 @@ if __name__ == '__main__':
     initialize_hx711()
     initialize_mqtt()
 
-    # Calibrer la balance
-    #calibrate(hx)
-    hx.set_reference_unit_A(26.0)
+    # Lancer la publication dans un thread séparé
+    try:
+        mqtt_thread = Thread(target=publish_weight, daemon=True)
+        mqtt_thread.start()
 
-    # Lancement de la boucle principale
-    main_loop()
+        while not stop_thread.is_set():
+            time.sleep(1)  # Garde le programme principal actif
+    except (KeyboardInterrupt, SystemExit):
+        print("Interruption par l'utilisateur. Fermeture du programme...")
+        clean_and_exit()
