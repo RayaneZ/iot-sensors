@@ -49,6 +49,8 @@ class ShoppingCart:
         if data:
             self.product_references = [item['value'] for item in data]
             log(f"Produits chargés : {self.product_references}")
+        else:
+            log("Impossible de charger les produits de référence.", "ERROR")
 
     def get_product_by_id(self, product_id):
         """Récupère un produit par ID."""
@@ -64,6 +66,8 @@ class ShoppingCart:
             elif action == 'remove' and product in self.product_list:
                 self.product_list.remove(product)
                 log(f"Produit retiré : {product['name']}")
+            else:
+                log(f"Action inconnue ou produit non trouvé : {product_id}", "WARNING")
             self.calculate_total_price()
             self.send_telemetry()
 
@@ -74,9 +78,7 @@ class ShoppingCart:
     def send_telemetry(self):
         """Envoie les données du panier à Thingsboard."""
         payload = {
-            "productList": [{
-                "id": p['id'], "name": p['name'], "price": p['price'], "weight": p['weight'], "category": p['category']
-            } for p in self.product_list],
+            "productList": [p for p in self.product_list],
             "totalPrice": self.total_price
         }
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -109,38 +111,39 @@ class MQTTHandler:
             sys.exit(1)
 
         # Abonnements
-        self.client.subscribe([
-            ("nfc/card/read", 0),
-            ("scale/weight_change", 0),
-            ("camera/objects/detected", 0)
-        ])
+        self.client.subscribe("nfc/card/read")
+        self.client.subscribe("scale/weight_change")
+        self.client.subscribe("camera/objects/detected")
         self.client.loop_start()
 
     # ------------ Callbacks ------------
+
     def on_connect(self, client, userdata, flags, rc):
         """Callback appelé lors de la connexion au broker."""
-        log("Connecté au broker MQTT avec le code de résultat: {}".format(rc))
-        self.client.subscribe([
-            ("nfc/card/read", 0),
-            ("scale/weight_change", 0),
-            ("camera/objects/detected", 0)
-        ])
+        log(f"Connecté au broker MQTT avec le code de résultat : {rc}")
 
     def on_message(self, client, userdata, message):
         """Callback appelé lors de la réception d'un message."""
         topic = message.topic
-        log(f"Message reçu sur le topic {topic}: {message.payload.decode()}")
-        if topic == "nfc/card/read":
-            self.on_nfc_message(client, userdata, message)
-        elif topic == "scale/weight_change":
-            self.on_weight_change(client, userdata, message)
-        elif topic == "camera/objects/detected":
-            self.on_objects_detected(client, userdata, message)
+        payload = message.payload.decode()
+        log(f"Message reçu sur le topic {topic}: {payload}")
 
-    def on_nfc_message(self, client, userdata, message):
-        data = self.parse_message(message)
+        try:
+            data = json.loads(payload)
+            if topic == "nfc/card/read":
+                self.handle_nfc_message(data)
+            elif topic == "scale/weight_change":
+                self.handle_weight_change(data)
+            elif topic == "camera/objects/detected":
+                self.handle_objects_detected(data)
+        except json.JSONDecodeError as e:
+            log(f"Erreur de décodage JSON : {e}", "ERROR")
+
+    # ------------ Gestion des messages ------------
+
+    def handle_nfc_message(self, data):
         if data.get('payment_mode') and self.cart.total_price > 0:
-            log(f"Paiement de {self.cart.total_price}€ effectué")
+            log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
             self.cart.total_price = 0
             self.cart.send_telemetry()
@@ -148,32 +151,28 @@ class MQTTHandler:
         else:
             self.cart.send_payment_status(False)
 
-    def on_weight_change(self, client, userdata, message):
-        data = self.parse_message(message)
+    def handle_weight_change(self, data):
         delta = data.get('delta', 0)
-        if abs(delta) > 0:
-            for product in self.cart.product_references:
-                if abs(abs(delta) - product['weight']) <= 5:
-                    action = 'add' if delta > 0 else 'remove'
-                    self.cart.update_cart(product['id'], action)
-                    break
+        for product in self.cart.product_references:
+            if abs(abs(delta) - product['weight']) <= 5:
+                action = 'add' if delta > 0 else 'remove'
+                self.cart.update_cart(product['id'], action)
+                break
 
-    def on_objects_detected(self, client, userdata, message):
-        objects = self.parse_message(message)
+    def handle_objects_detected(self, objects):
         log("Objets détectés :")
         for obj in objects:
             log(f"- {obj['label']} (Confiance: {obj['score']})")
 
-    # ------------ Utilitaires ------------
-    @staticmethod
-    def parse_message(message):
-        try:
-            return json.loads(message.payload)
-        except json.JSONDecodeError as e:
-            log(f"Erreur de décodage JSON : {e}", "ERROR")
-            return {}
-
 # ------------------ Main ------------------
 if __name__ == "__main__":
-    cart = ShoppingCart(TOKEN)
-    mqtt_handler = MQTTHandler(cart)
+    try:
+        cart = ShoppingCart(TOKEN)
+        mqtt_handler = MQTTHandler(cart)
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        log("Interruption par l'utilisateur. Fermeture...")
+        mqtt_handler.client.loop_stop()
+        mqtt_handler.client.disconnect()
+        log("Programme terminé proprement.")
