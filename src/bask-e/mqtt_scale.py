@@ -60,6 +60,7 @@ def tare_with_average(num_samples=10):
 def initialize_mqtt():
     """Connecte le client MQTT au broker."""
     try:
+        mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
