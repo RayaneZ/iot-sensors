@@ -199,6 +199,7 @@ class MQTTHandler:
             log(f"- {obj['label']}")
 
             product = self.cart.get_product_by_id(obj['label'])
+            log(f"Product detected : {product}")
             if product:
                 if self.cart.cart_error:
                     self.cart.cart_error = False
@@ -207,6 +208,7 @@ class MQTTHandler:
                 self.cart.cart_error = True
                 break
         self.cart.update_cart()
+        log(f"cart : {self.cart.product_list}")
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
