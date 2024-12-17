@@ -91,7 +91,7 @@ def initialize_mqtt():
 def read_weight():
     """Lit le poids actuel de la balance."""
     try:
-        weight = max(0, int(hx.get_weight(10)))  # Évite les valeurs négatives
+        weight = hx.get_weight(5)  # Évite les valeurs négatives
         print(f"Poids mesuré : {weight} g")
         return weight
     except Exception as e:
