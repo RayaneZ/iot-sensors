@@ -75,7 +75,7 @@ def process_frame(frame, mqtt_client):
     """Traite un frame vidéo : détecte les objets et publie sur MQTT."""
     detections = OBJECT_DETECTOR.detect(frame)
     detections_str = [{k: str(v) for k, v in detection.items()} for detection in detections if detection['label'] in ['bottle', 'toothbrush', 'banana']]
-    mqtt_payload = json.dumps(detections_str, indent=4, ensure_ascii=False)
+    mqtt_payload = json.dumps(detections_str)
     mqtt_client.publish(MQTT_TOPIC_READ, mqtt_payload)
     return detections
 

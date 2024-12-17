@@ -10,6 +10,13 @@ TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJrZXZpbi56aHVAZXBpdGEuZnIiLCJ1c2VySWQiOi
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
+# Table de correspondance entre labels YOLO et IDs produits
+YOLO_LABELS_TO_PRODUCT_ID = {
+    'banana': '1',
+    'orange': '18818888',
+    'bottle': '3',
+}
+
 # URLs Thingsboard
 ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
 TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/telemetry"
@@ -44,6 +51,7 @@ class ShoppingCart:
         self.token = token
         self.product_references = []
         self.product_list = []
+        self.cart_error = False
         self.total_price = 0
         self.load_product_references()
 
@@ -57,14 +65,16 @@ class ShoppingCart:
         else:
             log("Impossible de charger les produits de référence.", "ERROR")
 
-    def get_product_by_id(self, product_id):
+    def get_product_by_id(self, object_label):
         """Récupère un produit par ID."""
         return next((p for p in self.product_references if p['id'] == product_id), None)
 
-    def update_cart(self, product_id, action):
+    def update_cart(self, object_label, action):
         """Ajoute ou retire un produit dans le panier."""
-        product = self.get_product_by_id(product_id)
+        product = self.get_product_by_id(object_label)
         if product:
+            if self.cart_error:
+                self.cart_error = False
             if action == 'add':
                 self.product_list.append(product)
                 log(f"Produit ajouté : {product['name']}")
@@ -72,9 +82,11 @@ class ShoppingCart:
                 self.product_list.remove(product)
                 log(f"Produit retiré : {product['name']}")
             else:
-                log(f"Action inconnue ou produit non trouvé : {product_id}", "WARNING")
-            self.calculate_total_price()
-            self.send_telemetry()
+                log(f"Action inconnue ou produit non trouvé : {object_label}", "WARNING")
+        else:
+            self.cart_error = True
+        self.calculate_total_price()
+        self.send_telemetry()
 
     def calculate_total_price(self):
         """Calcule le prix total du panier."""
@@ -84,7 +96,8 @@ class ShoppingCart:
         """Envoie les données du panier à Thingsboard."""
         payload = {
             "productList": [p for p in self.product_list],
-            "totalPrice": self.total_price
+            "totalPrice": self.total_price,
+            "cartError": self.cart_error
         }
         headers = {"Authorization": f"Bearer {self.token}"}
         send_request(TELEMETRY_URL, "POST", headers, payload)
@@ -160,7 +173,7 @@ class MQTTHandler:
 
     def handle_weight_change(self, data):
         delta = data.get('delta', 0)
-        for product in self.cart.product_references:
+        for product in self.cart.product_list:
             if abs(abs(delta) - product['weight']) <= 5:
                 action = 'add' if delta > 0 else 'remove'
                 self.cart.update_cart(product['id'], action)
@@ -168,8 +181,10 @@ class MQTTHandler:
 
     def handle_objects_detected(self, objects):
         log("Objets détectés :")
+        self.cart.product_list = []
         for obj in objects:
             log(f"- {obj['label']} (Confiance: {obj['score']})")
+            self.cart.product_list.append(self.cart.get_product_by_id)
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
