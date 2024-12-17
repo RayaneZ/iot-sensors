@@ -65,26 +65,34 @@ class ShoppingCart:
         else:
             log("Impossible de charger les produits de référence.", "ERROR")
 
+    def get_product_id_from_yolo_label(self, yolo_label):
+        """Récupère l'ID du produit correspondant au label YOLO."""
+        return YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())
+
     def get_product_by_id(self, object_label):
         """Récupère un produit par ID."""
-        return next((p for p in self.product_references if p['id'] == product_id), None)
-
-    def update_cart(self, object_label, action):
-        """Ajoute ou retire un produit dans le panier."""
-        product = self.get_product_by_id(object_label)
-        if product:
-            if self.cart_error:
-                self.cart_error = False
-            if action == 'add':
-                self.product_list.append(product)
-                log(f"Produit ajouté : {product['name']}")
-            elif action == 'remove' and product in self.product_list:
-                self.product_list.remove(product)
-                log(f"Produit retiré : {product['name']}")
-            else:
-                log(f"Action inconnue ou produit non trouvé : {object_label}", "WARNING")
+        product_id = self.get_product_id_from_yolo_label(object_label)
+        if product_id:          
+            return next((p for p in self.product_references if p['id'] == product_id), None)
         else:
-            self.cart_error = True
+            return None
+
+    def update_cart(self):#, object_label, action):
+        """Ajoute ou retire un produit dans le panier."""
+        #product = self.get_product_by_id(object_label)
+        #if product:
+        #    if self.cart_error:
+        #        self.cart_error = False
+        #    if action == 'add':
+        #        self.product_list.append(product)
+        #        log(f"Produit ajouté : {product['name']}")
+        #    elif action == 'remove' and product in self.product_list:
+        #        self.product_list.remove(product)
+        #        log(f"Produit retiré : {product['name']}")
+        #    else:
+        #        log(f"Action inconnue ou produit non trouvé : {object_label}", "WARNING")
+        #else:
+        #    self.cart_error = True
         self.calculate_total_price()
         self.send_telemetry()
 
@@ -166,17 +174,17 @@ class MQTTHandler:
             log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
             self.cart.total_price = 0
-            self.cart.send_telemetry()
+            #self.cart.send_telemetry()
             self.cart.send_payment_status(True)
         else:
             self.cart.send_payment_status(False)
 
     def handle_weight_change(self, data):
         delta = data.get('delta', 0)
-        for product in self.cart.product_list:
+        for product in self.cart.product_references:
             if abs(abs(delta) - product['weight']) <= 5:
                 action = 'add' if delta > 0 else 'remove'
-                self.cart.update_cart(product['id'], action)
+                self.cart.update_cart()#product['id'], action)
                 break
 
     def handle_objects_detected(self, objects):
@@ -184,7 +192,15 @@ class MQTTHandler:
         self.cart.product_list = []
         for obj in objects:
             log(f"- {obj['label']} (Confiance: {obj['score']})")
-            self.cart.product_list.append(self.cart.get_product_by_id)
+
+            product = self.cart.get_product_by_id(obj['label'])
+            if product:
+                if self.cart.cart_error:
+                    self.cart.cart_error = False
+                self.cart.product_list.append(product)
+            else:
+                self.cart.cart_error = True
+                break
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
