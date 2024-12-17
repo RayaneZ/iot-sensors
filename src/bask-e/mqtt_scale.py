@@ -64,6 +64,25 @@ def tare_with_average(num_samples=10):
         print(f"Erreur lors de la tare : {e}")
         clean_and_exit()
 
+def calibrate():
+    """Calibrer la balance en fonction d'un objet de poids connu."""
+    readyCheck = input("Remove any items from scale. Press any key when ready.")
+    offset = hx.read_average()
+    print("Value at zero (offset): {}".format(offset))
+    hx.set_offset(offset)
+    print("Please place an item of known weight on the scale.")
+
+    readyCheck = input("Press any key to continue when ready.")
+    measured_weight = (hx.read_average()-hx.get_offset())
+    item_weight = input("Please enter the item's weight in grams.\n>")
+
+    try:
+        scale = int(measured_weight) / int(item_weight)
+        hx.set_scale(scale)
+        print("Scale adjusted for grams: {}".format(scale))
+    except ValueError:
+        print("Invalid item weight entered. Please enter a valid number.")
+
 def on_connect(client, userdata, flags, rc):
     """Callback exécuté lors de la connexion au broker MQTT."""
     if rc == 0:
@@ -91,7 +110,7 @@ def initialize_mqtt():
 def read_weight():
     """Lit le poids actuel de la balance."""
     try:
-        weight = hx.get_weight(10)  # Évite les valeurs négatives
+        weight = max(0, int(hx.get_weight(10)))  # Évite les valeurs négatives
         print(f"Poids mesuré : {weight} g")
         return weight
     except Exception as e:
@@ -137,6 +156,9 @@ if __name__ == '__main__':
     # Initialisation des composants
     initialize_hx711()
     initialize_mqtt()
+
+    # Calibrer la balance
+    calibrate()
 
     # Lancement de la boucle principale
     main_loop()
