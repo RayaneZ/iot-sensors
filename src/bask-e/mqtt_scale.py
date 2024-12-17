@@ -8,13 +8,17 @@ import paho.mqtt.client as mqtt
 # --------------------- Configuration ---------------------
 
 # Configuration de la balance
-REFERENCE_UNIT = 1  # Unité de référence pour la balance
-THRESHOLD = 10  # Seuil pour détecter un poids significatif en grammes
+REFERENCE_UNIT = 1
+THRESHOLD = 10  # Seuil pour poids en grammes
 
 # Configuration MQTT
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
-MQTT_TOPIC_WEIGHT = "scale/weight"  # Le seul canal pour publier le poids
+MQTT_TOPIC_WEIGHT = "scale/weight"
+
+# Variables globales
+weight_mode = False
+previous_weight = 0  # Dernier poids enregistré
 
 # Initialisation des objets
 chip = None
@@ -67,10 +71,15 @@ def on_connect(client, userdata, flags, rc):
     else:
         print(f"Échec de connexion au broker MQTT, code : {rc}")
 
+def on_message(client, userdata, msg):
+    """Callback exécuté lors de la réception d'un message MQTT."""
+    print(f"Message reçu sur {msg.topic} : {msg.payload}")
+
 def initialize_mqtt():
     """Initialise et connecte le client MQTT."""
     try:
         mqtt_client.on_connect = on_connect
+        mqtt_client.on_message = on_message
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
     except Exception as e:
