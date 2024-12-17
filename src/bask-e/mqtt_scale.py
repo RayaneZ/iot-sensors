@@ -64,31 +64,32 @@ def tare_with_average(num_samples=10):
         print(f"Erreur lors de la tare : {e}")
         clean_and_exit()
 
-
 def calibrate(scale: HX711):
-    # Remove any items from the scale
-    input("Remove any items from scale. Press Enter when ready.")
+    # Retirer tous les objets du capteur
+    input("Retirez tous les objets de la balance. Appuyez sur Entrée quand vous êtes prêt.")
     
-    # Measure the offset (zero value)
-    offset = scale.read_average()  # Get the average reading from HX711
-    print(f"Value at zero (offset): {offset}")
-    scale.set_offset(offset)  # Set the offset to zero
+    # Mesurer la valeur de l'offset (valeur zéro)
+    offset = scale.read_average()  # Obtenez la lecture moyenne depuis HX711
+    print(f"Valeur à zéro (offset) : {offset}")
+    scale.set_offset(offset)  # Applique l'offset
     
-    # Ask user to place a known weight on the scale
-    input("Please place an item of known weight on the scale. Press Enter when ready.")
+    # Demander à l'utilisateur de placer un objet de poids connu sur la balance
+    input("Veuillez placer un objet de poids connu sur la balance. Appuyez sur Entrée quand vous êtes prêt.")
     
-    # Measure the weight with the object on the scale
+    # Mesurer le poids avec l'objet sur la balance
     measured_weight = scale.read_average() - scale.get_offset()
     
-    # Input the known weight in grams
-    item_weight = float(input("Please enter the item's weight in grams:\n> "))
+    # Demander à l'utilisateur d'entrer le poids connu en grammes
+    item_weight = float(input("Veuillez entrer le poids de l'objet en grammes :\n> "))
     
-    # Calculate the scale adjustment factor
+    # Calculer le facteur de calibration
     scale_factor = measured_weight / item_weight
     
-    # Set the scale based on the known weight
-    scale.set_scale(scale_factor)
-    print(f"Scale adjusted for grams: {scale_factor}")
+    # Définir l'unité de référence en fonction du facteur de calibration
+    scale.set_reference_unit_A(scale_factor)  # Applique le facteur de calibration
+    print(f"Balance ajustée pour les grammes avec le facteur : {scale_factor}")
+
+
 
 def on_connect(client, userdata, flags, rc):
     """Callback exécuté lors de la connexion au broker MQTT."""
