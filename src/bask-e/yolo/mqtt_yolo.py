@@ -34,7 +34,7 @@ MQTT_TOPIC_READ = "camera/objects/detected"
 
 def initialize_mqtt():
     """Initialise et connecte le client MQTT."""
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     try:
         client.connect(MQTT_BROKER, MQTT_PORT, 60)
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
