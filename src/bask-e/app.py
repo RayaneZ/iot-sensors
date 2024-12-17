@@ -191,7 +191,7 @@ class MQTTHandler:
         log("Objets détectés :")
         self.cart.product_list = []
         for obj in objects:
-            log(f"- {obj['label']} (Confiance: {obj['score']})")
+            log(f"- {obj['label']}")
 
             product = self.cart.get_product_by_id(obj['label'])
             if product:
