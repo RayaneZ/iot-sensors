@@ -23,7 +23,7 @@ previous_weight = 0  # Dernier poids enregistré
 # Initialisation des objets
 chip = None
 hx = None
-mqtt_client = mqtt.Client()
+mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 # --------------------- Fonctions Utilitaires ---------------------
 
@@ -168,6 +168,6 @@ if __name__ == '__main__':
     # Calibrer la balance
     #calibrate(hx)
     hx.set_reference_unit_A(26.0)
-    
+
     # Lancement de la boucle principale
     main_loop()
