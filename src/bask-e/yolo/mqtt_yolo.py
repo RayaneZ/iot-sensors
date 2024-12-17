@@ -28,7 +28,7 @@ OBJECT_COLORS = np.random.randint(0, 255, size=(len(OBJECT_CLASSES), 3), dtype="
 OBJECT_DETECTOR = OBJ_DETECTION('weights/yolov5s.pt', OBJECT_CLASSES)
 
 # MQTT Configuration
-MQTT_BROKER = "localhost"
+MQTT_BROKER = "mqtt.eclipseprojects.io"  # Nouveau broker MQTT
 MQTT_PORT = 1883
 MQTT_TOPIC_READ = "camera/objects/detected"
 
@@ -41,7 +41,7 @@ ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a8
 
 def initialize_mqtt():
     """Initialise et connecte le client MQTT."""
-    client = mqtt.Client()
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     try:
         client.connect(MQTT_BROKER, MQTT_PORT, 60)
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
