@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 
 # ------------------ Configuration ------------------
 THINGSBOARD_BASE_URL = "https://iot-5etoiles.bnf.sigl.epita.fr"
-TOKEN = "muOVFVkq5YWhvpGoSmJq"
+TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJrZXZpbi56aHVAZXBpdGEuZnIiLCJ1c2VySWQiOiIzY2EwZWJjMC1hMmM5LTExZWYtOGVjYy0xNWY2MmYxZTRjYzAiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6IjM5ZTI2NjhjLTc3ZGItNGQxYS1iMTA2LThmOWYzNWZlYWM2ZSIsImV4cCI6MTc1NTkzOTUzOCwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3MzQ0NjQ3MDIsImZpcnN0TmFtZSI6IktldmluIiwibGFzdE5hbWUiOiJaaHUiLCJlbmFibGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiNjg1MjM5NDAtOTkwNS0xMWVmLWFmNTAtOTExMzY1YjA0MjVmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.xO4Gpm61Lagu1NvuItaNnw8p-rwIlkAsMcw2GnDsicGwwWtZskVNEYzlFUs4xDNv8Gpgf1xIaPIc-Lh2jYco3w"
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
