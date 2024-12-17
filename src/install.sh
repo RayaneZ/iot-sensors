@@ -38,7 +38,7 @@ systemctl daemon-reload
 
 # Activer et démarrer chaque service
 echo "Activation et démarrage des services..."
-for service in "$SYSTEMD_DIR"/*.service; do
+for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
     service_name=$(basename "$service")
     echo "Activation du service : $service_name"
     systemctl enable "$service_name"
