@@ -57,10 +57,19 @@ def tare_with_average(num_samples=10):
     hx.set_offset(average)
     print(f"Tare réalisée avec une moyenne de {average:.2f} g.")
 
+def on_connect(client, userdata, flags, rc):
+    print("Connecté avec le code de résultat " + str(rc))
+    client.subscribe("$SYS/#")  # S'abonne à tous les sujets système
+
+def on_message(client, userdata, msg):
+    print(msg.topic + " " + str(msg.payload))
+
 def initialize_mqtt():
     """Connecte le client MQTT au broker."""
     try:
         mqtt_client = mqtt.Client(protocol=mqtt.MQTTv311)
+        mqtt_client.on_connect = on_connect  # Ajout du callback on_connect
+        mqtt_client.on_message = on_message    # Ajout du callback on_message
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         mqtt_client.loop_start()
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
