@@ -89,7 +89,7 @@ def continuous_read():
 if __name__ == '__main__':
     # Connexion au broker MQTT
     try:
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        mqtt_client.connect("mqtt.eclipseprojects.io", 1883, 60)
         print(f"Connecté au broker MQTT : {MQTT_BROKER}:{MQTT_PORT}")
     except Exception as e:
         print(f"Impossible de se connecter au broker MQTT : {e}")
