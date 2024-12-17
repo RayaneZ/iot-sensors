@@ -10,6 +10,13 @@ TOKEN = "muOVFVkq5YWhvpGoSmJq"
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
+# Table de correspondance entre labels YOLO et IDs produits
+YOLO_LABELS_TO_PRODUCT_ID = {
+    'banana': '1',
+    'orange': '18818888',
+    'bottle': '3',
+}
+
 # URLs Thingsboard
 ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a810-11ef-8ecc-15f62f1e4cc0/values/attributes"
 TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
@@ -49,13 +56,17 @@ class ShoppingCart:
         data = send_request(ATTRIBUTE_URL, "GET", headers)
         if data:
             self.product_references = [item['value'] for item in data]
-            log(f"Produits chargés : {self.product_references}")
+            log(f"Produits chargés")
         else:
             log("Impossible de charger les produits de référence.", "ERROR")
 
     def get_product_by_id(self, product_id):
         """Récupère un produit par ID."""
         return next((p for p in self.product_references if p['id'] == product_id), None)
+
+    def get_product_id_from_yolo_label(self, yolo_label):
+        """Récupère l'ID du produit correspondant au label YOLO."""
+        return YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())
 
     def update_cart(self, product_id, action):
         """Ajoute ou retire un produit dans le panier."""
@@ -164,12 +175,41 @@ class MQTTHandler:
     def on_objects_detected(self, client, userdata, message): # FIXME
         data = self.parse_message(message)
         objects = data.get('detections', [])
-        telemetry_status = False
+        cart_error = False
         validated_objects = []
 
         log("Objets détectés :")
         for obj in objects:
-            log(f"- {obj['label']} (Confiance: {obj['score']})")
+            label = obj['label'].lower()
+            score = obj['score']
+            
+            # Récupérer l'ID du produit via la table de correspondance
+            product_id = self.cart.get_product_id_from_yolo_label(label)
+            
+            if product_id:
+                # Récupérer les informations complètes du produit
+                product = self.cart.get_product_by_id(product_id)
+                if product:
+                    obj['product_info'] = product
+                    validated_objects.append(obj)
+                    log(f"- {label} (Confiance: {score:.2f}) - Validé avec le produit: {product['name']}")
+                else:
+                    cart_error = True
+                    log(f"- {label} (Confiance: {score:.2f}) - ID produit trouvé mais produit non trouvé", "WARNING")
+            else:
+                cart_error = True
+                log(f"- {label} (Confiance: {score:.2f}) - Label non associé à un produit", "WARNING")
+
+        # Mettre à jour le statut d'erreur du panier
+        self.cart.cart_error = cart_error
+        
+        # Publier le résultat de la validation
+        validation_result = {
+            'detections': validated_objects,
+            'cart_error': cart_error,
+            'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
+        }
+        self.client.publish('camera/objects/validated', json.dumps(validation_result, indent=4, ensure_ascii=False))
 
     # ------------ Utilitaires ------------
     @staticmethod
