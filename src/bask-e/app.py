@@ -203,6 +203,7 @@ class MQTTHandler:
             else:
                 self.cart.cart_error = True
                 break
+        self.cart.update_cart()
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
