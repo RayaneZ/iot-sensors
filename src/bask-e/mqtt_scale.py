@@ -47,6 +47,7 @@ def initialize_hx711():
         hx.set_reading_format("MSB", "MSB")
         hx.set_reference_unit(REFERENCE_UNIT)
         hx.reset()
+        hx.set_reference_unit_A(26.0)
         tare_with_average()
         print("Balance initialisée et tare effectuée.")
     except Exception as e:
@@ -166,7 +167,7 @@ if __name__ == '__main__':
     initialize_mqtt()
 
     # Calibrer la balance
-    calibrate(hx)
+    #calibrate(hx)
 
     # Lancement de la boucle principale
     main_loop()
