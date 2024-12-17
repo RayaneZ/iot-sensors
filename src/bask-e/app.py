@@ -105,6 +105,8 @@ class ShoppingCart:
     def send_telemetry(self):
         """Envoie les données du panier à Thingsboard."""
         log("Envoi des données à thingsboard")
+        if len(self.product_list) == 0:
+            return
         payload = {
             "productList": [p for p in self.product_list],
             "totalPrice": self.total_price,
