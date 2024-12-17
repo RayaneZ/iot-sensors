@@ -23,7 +23,7 @@ OBJECT_CLASSES = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', '
 OBJECT_COLORS = np.random.randint(0, 255, size=(len(OBJECT_CLASSES), 3), dtype="uint8")
 
 # YOLO Object Detector
-OBJECT_DETECTOR = OBJ_DETECTION('weights/yolov5s.pt', OBJECT_CLASSES)
+OBJECT_DETECTOR = OBJ_DETECTION('/opt/bask-e/yolo/weights/yolov5s.pt', OBJECT_CLASSES)
 
 # MQTT Configuration
 MQTT_BROKER = "mqtt.eclipseprojects.io"  # Nouveau broker MQTT
@@ -74,7 +74,8 @@ def draw_detections(frame, detections):
 def process_frame(frame, mqtt_client):
     """Traite un frame vidéo : détecte les objets et publie sur MQTT."""
     detections = OBJECT_DETECTOR.detect(frame)
-    mqtt_payload = json.dumps(detections, indent=4, ensure_ascii=False)
+    detections_str = [{k: str(v) for k, v in detection.items()} for detection in detections]
+    mqtt_payload = json.dumps(detections_str, indent=4, ensure_ascii=False)
     mqtt_client.publish(MQTT_TOPIC_READ, mqtt_payload)
     return detections
 
