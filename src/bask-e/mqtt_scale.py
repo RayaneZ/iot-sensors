@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 # Configuration de la balance
 REFERENCE_UNIT = 1
 THRESHOLD = 10  # Seuil pour poids en grammes
+PRECISION = 5  # Imprécision acceptable en grammes
 
 # Configuration MQTT
 MQTT_BROKER = "mqtt.eclipseprojects.io"
@@ -17,7 +18,6 @@ MQTT_PORT = 1883
 MQTT_TOPIC_WEIGHT = "scale/weight"
 
 # Variables globales
-weight_mode = False
 previous_weight = 0  # Dernier poids enregistré
 
 # Initialisation des objets
@@ -64,31 +64,6 @@ def tare_with_average(num_samples=10):
         print(f"Erreur lors de la tare : {e}")
         clean_and_exit()
 
-def calibrate(scale: HX711):
-    # Retirer tous les objets du capteur
-    input("Retirez tous les objets de la balance. Appuyez sur Entrée quand vous êtes prêt.")
-    
-    # Mesurer la valeur de l'offset (valeur zéro)
-    offset = scale.read_average()  # Obtenez la lecture moyenne depuis HX711
-    print(f"Valeur à zéro (offset) : {offset}")
-    scale.set_offset(offset)  # Applique l'offset
-    
-    # Demander à l'utilisateur de placer un objet de poids connu sur la balance
-    input("Veuillez placer un objet de poids connu sur la balance. Appuyez sur Entrée quand vous êtes prêt.")
-    
-    # Mesurer le poids avec l'objet sur la balance
-    measured_weight = scale.read_average() - scale.get_offset()
-    
-    # Demander à l'utilisateur d'entrer le poids connu en grammes
-    item_weight = float(input("Veuillez entrer le poids de l'objet en grammes :\n> "))
-    
-    # Calculer le facteur de calibration
-    scale_factor = measured_weight / item_weight
-    
-    # Définir l'unité de référence en fonction du facteur de calibration
-    scale.set_reference_unit_A(scale_factor)  # Applique le facteur de calibration
-    print(f"Balance ajustée pour les grammes avec le facteur : {scale_factor}")
-       
 def on_connect(client, userdata, flags, rc):
     """Callback exécuté lors de la connexion au broker MQTT."""
     if rc == 0:
@@ -123,15 +98,16 @@ def read_weight():
         print(f"Erreur lors de la lecture du poids : {e}")
         return 0
 
-def publish_weight(current_weight):
+def publish_weight(current_weight, weight_difference):
     """Publie le poids actuel via MQTT."""
     try:
         payload = json.dumps({
             'weight': current_weight,
+            'difference': weight_difference,
             'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
         })
         mqtt_client.publish(MQTT_TOPIC_WEIGHT, payload)
-        print(f"Publié sur MQTT : poids = {current_weight} g")
+        print(f"Publié sur MQTT : poids = {current_weight} g, différence = {weight_difference} g")
     except Exception as e:
         print(f"Erreur lors de la publication du poids : {e}")
 
@@ -139,13 +115,20 @@ def publish_weight(current_weight):
 
 def main_loop():
     """Boucle principale pour lire et publier les poids."""
+    global previous_weight
+
     try:
         while True:
             # Lire le poids actuel
             current_weight = read_weight()
 
-            # Publier le poids
-            publish_weight(current_weight)
+            # Calculer la différence de poids
+            weight_difference = current_weight - previous_weight
+
+            # Publier si la différence dépasse l'imprécision
+            if abs(weight_difference) > PRECISION:
+                publish_weight(current_weight, weight_difference)
+                previous_weight = current_weight  # Mettre à jour le poids précédent
 
             # Réinitialiser la balance pour économiser l'énergie
             hx.power_down()
@@ -162,11 +145,8 @@ if __name__ == '__main__':
     # Initialisation des composants
     initialize_hx711()
     initialize_mqtt()
-    
+
     hx.set_reference_unit_A(26.4)
-    
-    # Calibrer la balance
-    #calibrate(hx)
 
     # Lancement de la boucle principale
     main_loop()
