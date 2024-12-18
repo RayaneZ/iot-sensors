@@ -1,103 +1,61 @@
-name: Deploy OTA Package to ThingsBoard
-
-on:
-  push:
-    tags:
-      - '*'
-  workflow_dispatch:
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    env:
-      THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
-      TB_USERNAME: ${{ secrets.TB_USERNAME }}
-      TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
-      DEVICE_ID: "5f680200-a2ca-11ef-8ecc-15f62f1e4cc0"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Get version from git
-        id: version
-        run: |
-          echo "VERSION=${GITHUB_SHA::7}" >> $GITHUB_ENV
-          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-
-      - name: Package application for OTA
-        run: |
-          zip -r ota_package.zip ./src/*
-
-      - name: Upload OTA package artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: ota_package
-          path: ota_package.zip
-
-      - name: Authenticate to ThingsBoard
-        id: tb_login
-        run: |
-          response=$(curl -s -X POST "$THINGSBOARD_URL/api/auth/login" \
-            -H "Content-Type: application/json" \
-            -d '{"username": "'"$TB_USERNAME"'", "password": "'"$TB_PASSWORD"'"}')
-          token=$(echo "$response" | jq -r '.token')
-          echo "TB_TOKEN=$token" >> $GITHUB_ENV
-
-      - name: Create OTA Package in ThingsBoard
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-        run: |
-          response=$(curl -s -X POST "$THINGSBOARD_URL/api/otaPackage" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "title":"Python et TRT Update",
-                  "version":"'"$TAG-$VERSION"'",
-                  "tag":"'"$TAG"'",
-                  "type":"SOFTWARE",
-                  "isURL":false,
-                  "additionalInfo": {
-                    "description":"Release '"$TAG"' (commit: '"$VERSION"')"
-                  }
-                }')
-          ota_package_id=$(echo "$response" | jq -r '.id.id')
-          echo $response
-          echo "OTA_PACKAGE_ID=$ota_package_id" >> $GITHUB_ENV
-
-      - name: Upload OTA Content
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-          OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
-        run: |
-          curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID?checksumAlgorithm=SHA256" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -F "file=@ota_package.zip" \
-            -H "Content-Type: multipart/form-data"
-
-      - name: Deploy OTA Package to Device
-        env:
-          TB_TOKEN: ${{ env.TB_TOKEN }}
-          DEVICE_ID: ${{ env.DEVICE_ID }}
-          OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
-        run: |
-          # Mettre à jour l'appareil avec le package OTA
-          curl -s -X POST "$THINGSBOARD_URL/api/device" \
-            -H "X-Authorization: Bearer $TB_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-                  "id": {
-                    "entityType": "DEVICE",
-                    "id": "'"$DEVICE_ID"'"
-                  },
-                  "name": "Panier 1",
-                  "softwareId": {
-                    "entityType": "OTA_PACKAGE",
-                    "id": "'"$OTA_PACKAGE_ID"'"
-                  },
-                  "additionalInfo": {
-                    "description": "Updated to version '"$TAG-$VERSION"'"
-                  }
-                }'
-      
+- name: Deploy OTA Package to Device
+  env:
+    TB_TOKEN: ${{ env.TB_TOKEN }}
+    THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
+    DEVICE_ID: "5f680200-a2ca-11ef-8ecc-15f62f1e4cc0"
+    TENANT_ID: "68523940-9905-11ef-af50-911365b0425f"
+    CUSTOMER_ID: "d36e1d70-a2c9-11ef-8ecc-15f62f1e4cc0"
+    DEVICE_NAME: "Panier 1"
+    DEVICE_PROFILE_ID: ${{ env.DEVICE_PROFILE_ID }}
+    OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
+    DEVICE_VERSION: 7
+  run: |
+    curl -s -X POST "$THINGSBOARD_URL/api/device" \
+      -H "X-Authorization: Bearer $TB_TOKEN" \
+      -H "Content-Type: application/json" \
+      -d '{
+            "id": {
+              "entityType": "DEVICE",
+              "id": "'"${DEVICE_ID}"'"
+            },
+            "createdTime": 1731617553952,
+            "tenantId": {
+              "entityType": "TENANT",
+              "id": "'"${TENANT_ID}"'"
+            },
+            "customerId": {
+              "entityType": "CUSTOMER",
+              "id": "'"${CUSTOMER_ID}"'"
+            },
+            "name": "'"${DEVICE_NAME}"'",
+            "type": "BaskE Panier",
+            "label": "POC",
+            "deviceProfileId": {
+              "entityType": "DEVICE_PROFILE",
+              "id": "'"${DEVICE_PROFILE_ID}"'"
+            },
+            "firmwareId": null,
+            "softwareId": {
+              "entityType": "OTA_PACKAGE",
+              "id": "'"${OTA_PACKAGE_ID}"'"
+            },
+            "externalId": null,
+            "version": "'"${DEVICE_VERSION}"'",
+            "customerTitle": "Gerard",
+            "customerIsPublic": false,
+            "deviceProfileName": "BaskE Panier",
+            "active": true,
+            "additionalInfo": {
+              "gateway": false,
+              "overwriteActivityTime": false,
+              "description": ""
+            },
+            "deviceData": {
+              "configuration": {
+                "type": "DEFAULT"
+              },
+              "transportConfiguration": {
+                "type": "MQTT"
+              }
+            }
+          }'
