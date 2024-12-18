@@ -91,6 +91,7 @@ jobs:
                     "entityType": "DEVICE",
                     "id": "'"$DEVICE_ID"'"
                   },
+                  "name": "Panier 1",
                   "softwareId": {
                     "entityType": "OTA_PACKAGE",
                     "id": "'"$OTA_PACKAGE_ID"'"
@@ -99,3 +100,4 @@ jobs:
                     "description": "Updated to version '"$TAG-$VERSION"'"
                   }
                 }'
+      
