@@ -178,7 +178,7 @@ class MQTTHandler:
 
         # Abonnements
         self.client.subscribe("nfc/card/read")
-        self.client.subscribe("scale/weight_change")
+        self.client.subscribe("scale/weight")
         self.client.subscribe("camera/objects/detected")
         self.client.loop_start()
 
