@@ -18,7 +18,7 @@ fi
 
 # Copie les fichiers dans le répertoire d'installation
 echo "Copie des fichiers dans le répertoire d'installation..."
-cp -r "/tmp/ota_update/src/*" "$INSTALL_DIR/"
+cp -r /tmp/ota_update/src/* "$INSTALL_DIR/"
 
 # Activer et démarrer chaque service
 echo "Desactivation et arret des services..."
