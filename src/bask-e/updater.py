@@ -125,6 +125,32 @@ def verify_checksum(software_data, checksum_alg, checksum):
         return False
     return checksum_of_received_software == checksum
 
+def get_current_software_info():
+    # Exemple de lecture d'un fichier de version
+    version_file = '/opt/version_ota.txt'
+    try:
+        with open(version_file, 'r') as file:
+            version = file.read().strip()  # Lire la version
+        return {
+            "current_sw_title": "ota_update.zip",
+            "current_sw_version": version
+        }
+    except Exception as e:
+        print(f"Erreur lors de la lecture du fichier de version : {e}")
+        return {
+            "current_sw_title": None,
+            "current_sw_version": None
+        }
+    
+def set_current_software_info(version):
+    version_file = '/opt/version_ota.txt'
+    try:
+        with open(version_file, 'w') as file:
+            file.write(version)  # Écrire la version
+    except Exception as e:
+        print(f"Erreur lors de l'écriture du fichier de version : {e}")
+
+
 
 def dummy_upgrade(version_from, version_to):
     print(f"Updating from {version_from} to {version_to}:")
@@ -136,7 +162,7 @@ def dummy_upgrade(version_from, version_to):
     try:
         # Extract update package
         print("Extracting update package...")
-        with zipfile.ZipFile(software_info.get(SW_TITLE_ATTR), 'r') as zip_ref:
+        with zipfile.ZipFile("ota_package.zip", 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
     
         # Add permissions and execute the install.sh
@@ -171,10 +197,7 @@ if __name__ == '__main__':
     status_thread.start()
     
     # Initialiser les informations du software actuel
-    current_software_info = {
-        "current_sw_title": None,
-        "current_sw_version": None
-    }
+    current_software_info = get_current_software_info()
     send_telemetry(current_software_info)
 
     print(f"Getting software info from {config['host']}..")
@@ -230,6 +253,7 @@ if __name__ == '__main__':
                 "current_" + SW_VERSION_ATTR: software_info.get(SW_VERSION_ATTR),
                 SW_STATE_ATTR: "UPDATED"
             }
+            set_current_software_info(software_info.get(SW_VERSION_ATTR))
             sleep(1)
             send_telemetry(current_software_info)
         sleep(10)  # Attendre 10 secondes avant de vérifier à nouveau
