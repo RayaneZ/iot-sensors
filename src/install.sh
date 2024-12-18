@@ -18,7 +18,18 @@ fi
 
 # Copie les fichiers dans le répertoire d'installation
 echo "Copie des fichiers dans le répertoire d'installation..."
-cp -r * "$INSTALL_DIR/"
+cp -r "/tmp/ota_update/src/*" "$INSTALL_DIR/"
+
+# Activer et démarrer chaque service
+echo "Desactivation et arret des services..."
+for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
+    service_name=$(basename "$service")
+    echo "Activation du service : $service_name"
+    systemctl stop "$service_name"
+    systemctl disable "$service_name"
+done
+
+
 
 # Installation des dépendances Python
 echo "Installation des dépendances Python..."
@@ -41,8 +52,6 @@ echo "Activation et démarrage des services..."
 for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
     service_name=$(basename "$service")
     echo "Activation du service : $service_name"
-    systemctl stop "$service_name"
-    systemctl disable "$service_name"
     systemctl enable "$service_name"
     systemctl start "$service_name"
 done

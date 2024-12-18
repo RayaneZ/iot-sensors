@@ -141,8 +141,8 @@ def dummy_upgrade(version_from, version_to):
     
         # Add permissions and execute the install.sh
         print("Adding permissions and executing the install.sh...")
-        subprocess.run(["sudo", "chmod", "+x", temp_dir + "/install.sh"])
-        subprocess.run(["sudo", temp_dir + "/install.sh"], check=True)
+        subprocess.run(["sudo", "chmod", "+x", temp_dir + "/src/install.sh"])
+        subprocess.run(["sudo", temp_dir + "/src/install.sh"], check=True)
 
         # Restart service to apply update
         print("Restarting service...")
