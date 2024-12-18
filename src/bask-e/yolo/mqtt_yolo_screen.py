@@ -106,7 +106,7 @@ def capture_screen_and_process(mqtt_client):
     detections = OBJECT_DETECTOR.detect(frame)
 
     # Filtrer et compter les labels d'intérêt
-    labels_of_interest = ['bottle', 'toothbrush', 'banana']
+    labels_of_interest = ['bottle', 'toothbrush', 'banana', 'apple']
     filtered_labels = [detection['label'] for detection in detections if detection['label'] in labels_of_interest]
     label_counts = Counter(filtered_labels)
 

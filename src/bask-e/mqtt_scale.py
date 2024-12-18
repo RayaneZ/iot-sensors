@@ -9,7 +9,7 @@ import paho.mqtt.client as mqtt
 
 # Configuration de la balance
 REFERENCE_UNIT = 1
-THRESHOLD = 10  # Seuil pour poids en grammes
+THRESHOLD = 25  # Seuil pour poids en grammes
 PRECISION = 5  # Imprécision acceptable en grammes
 
 # Configuration MQTT
