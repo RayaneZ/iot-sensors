@@ -132,7 +132,7 @@ def get_current_software_info():
         with open(version_file, 'r') as file:
             version = file.read().strip()  # Lire la version
         return {
-            "current_sw_title": "ota_update.zip",
+            "current_sw_title": "ota_package.zip",
             "current_sw_version": version
         }
     except Exception as e:
