@@ -13,8 +13,9 @@ MQTT_PORT = 1883
 # Table de correspondance entre labels YOLO et IDs produits
 YOLO_LABELS_TO_PRODUCT_ID = {
     'banana': 1,
-    'orange': '18818888',
     'bottle': 3,
+    'toothbrush': 4,
+    'apple': 5
 }
 
 # URLs Thingsboard
@@ -217,28 +218,58 @@ class MQTTHandler:
             self.cart.send_payment_status(False)
 
     def handle_weight_change(self, data):
-        log("Changement de poids détecté :")
-        delta = data.get('delta', 0)
-        for product in self.cart.product_references:
-            if abs(abs(delta) - product['weight']) <= 5:
-                action = 'add' if delta > 0 else 'remove'
-        self.cart.update_cart()    
+        # log("Changement de poids détecté :")
+        # delta = data.get('delta', 0)
+        # for product in self.cart.product_references:
+        #     if abs(abs(delta) - product['weight']) <= 5:
+        #         action = 'add' if delta > 0 else 'remove'
+        # self.cart.update_cart()
+        global last_data_scale
+        last_data_scale = data    
 
     def handle_objects_detected(self, objects):
-        log("Objets détectés :")
-        self.cart.product_list = []
+        global last_data_obj, last_data_scale
+        last_data_obj = objects  
+        
+        total_weight, timestamp, weight_delta = last_data_scale["weight"], last_data_scale["timestamp"], last_data_scale["difference"]  
+        
+        #self.cart.product_list = []
+        supposed_total_weight = 0
         for obj in objects:
-            log(f"- {obj['label']}")
+            label, count, diff = obj["label"], obj["count"], obj["difference"]
 
-            product = self.cart.get_product_by_id(obj['label'])
-            log(f"Product detected : {product}")
+            # Vérifier le cas d'un ajout d'objet :
+            # if float(last_data_scale["difference"]) >= 0.0 and float(diff) >= 0.0:
+                # Chercher le produit correspondant dans le panier
+            product = self.cart.get_product_by_id(label)
             if product:
+                # Si un produit est trouvé, l'ajouter au panier
+                product["count"] = count
+                supposed_total_weight += product["weight"] 
+
                 if self.cart.cart_error:
-                    self.cart.cart_error = False
+                    self.cart.cart_error = False  # Réinitialiser les erreurs de panier
                 self.cart.product_list.append(product)
+                print(f"Added product: {product}")
             else:
+                # Si le produit n'existe pas dans le catalogue, lever une erreur
                 self.cart.cart_error = True
+                print(f"Error: Product {label} not found in catalog.")
                 break
+
+            # Vérifier le cas d'un retrait d'objet :
+            # elif float(last_data_scale["difference"]) < 0.0 and float(diff) < 0.0:
+            #     product = self.cart.get_product_by_id(label)
+            #     if product and product in self.cart.product_list:
+            #         self.cart.product_list.remove(product)
+            #         print(f"Removed product: {label}")
+            #     else:
+            #         print(f"Error: Product {label} not in cart.")
+
+        log(f"Supposed total weight : {supposed_total_weight}, Total Weight : {total_weight}")
+        acceptance_interval = 15
+        if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
+            self.cart.cart_error = True
         self.cart.update_cart()
         log(f"cart : {self.cart.product_list}")
 
