@@ -53,7 +53,7 @@ jobs:
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-                  "title":"Python et TRT Update",
+                  "title":"ota_package.zip",
                   "version":"'"$TAG-$VERSION"'",
                   "tag":"'"$TAG"'",
                   "type":"SOFTWARE",
