@@ -228,11 +228,14 @@ class MQTTHandler:
         #         action = 'add' if delta > 0 else 'remove'
         # self.cart.update_cart()
         global last_data_scale
-        last_data_scale = data    
+        last_data_scale = data
+        log(f"Data : {data}")    
 
     def handle_objects_detected(self, objects):
         global last_data_obj, last_data_scale
         last_data_obj = objects  
+
+        log(f"Last data scale : {last_data_scale}")
         
         total_weight, timestamp, weight_delta = last_data_scale["weight"], last_data_scale["timestamp"], last_data_scale["difference"]  
         
