@@ -241,6 +241,7 @@ class MQTTHandler:
         
         self.cart.product_list = []
         supposed_total_weight = 0
+        self.cart.cart_error = False
         for obj in objects:
             label, count, diff = obj["label"], obj["count"], obj["difference"]
 
@@ -253,8 +254,6 @@ class MQTTHandler:
                 product["count"] = count
                 supposed_total_weight += product["weight"] 
 
-                if self.cart.cart_error:
-                    self.cart.cart_error = False  # Réinitialiser les erreurs de panier
                 self.cart.product_list.append(product)
                 print(f"Added product: {product}")
             else:
