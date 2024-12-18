@@ -106,8 +106,8 @@ def publish_weight(current_weight, weight_difference):
             'difference': weight_difference,
             'timestamp': time.strftime('%Y-%m-%dT%H:%M:%S')
         })
-        mqtt_client.publish(MQTT_TOPIC_WEIGHT, payload)
-        print(f"Publié sur MQTT : poids = {current_weight} g, différence = {weight_difference} g")
+        sg_info = mqtt_client.publish(MQTT_TOPIC_WEIGHT, payload)
+        sg_info.wait_for_publish()
     except Exception as e:
         print(f"Erreur lors de la publication du poids : {e}")
 
