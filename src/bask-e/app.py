@@ -23,8 +23,8 @@ ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a8
 TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
 PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
 
-last_data_scale = {}
-last_data_obj = {}
+last_data_scale = {"weight": 0, "difference": 0, "timestamp": time.strftime('%Y-%m-%dT%H:%M:%S')}
+last_data_obj = []
 
 # ------------------ Fonctions Utilitaires ------------------
 def log(message, level="INFO"):
