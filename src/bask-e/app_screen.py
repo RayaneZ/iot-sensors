@@ -131,7 +131,7 @@ class ShoppingCart:
                 "name": product['name'],
                 "price": float(product['price']),
                 "weight": int(product['weight']),
-                "nutri-score": product['nutri-score'],
+                "nutriScore": product['nutri-score'],
                 "category": product['category'],
                 "image": product['image'],
                 "stock": int(product['stock'])
