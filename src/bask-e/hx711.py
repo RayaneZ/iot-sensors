@@ -203,14 +203,12 @@ class HX711:
         dataBytes:list[int] = self.readRawBytes()
 
 
-        logger.debug(dataBytes,)
         
         # Join the raw bytes into a single 24bit 2s complement value.
         twosComplementValue = ((dataBytes[0] << 16) |
                                (dataBytes[1] << 8)  |
                                dataBytes[2])
 
-        logger.debug(f"Twos: 0x{twosComplementValue:06x}")
         
         # Convert from 24bit twos-complement to a signed value.
         signedIntValue:int = self.convertFromTwosComplement24bit(twosComplementValue)
