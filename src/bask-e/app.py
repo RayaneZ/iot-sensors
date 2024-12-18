@@ -23,6 +23,9 @@ ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a8
 TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
 PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
 
+last_data_scale = {}
+last_data_obj = {}
+
 # ------------------ Fonctions Utilitaires ------------------
 def log(message, level="INFO"):
     """Affiche un message avec un niveau de priorité."""
@@ -233,7 +236,7 @@ class MQTTHandler:
         
         total_weight, timestamp, weight_delta = last_data_scale["weight"], last_data_scale["timestamp"], last_data_scale["difference"]  
         
-        #self.cart.product_list = []
+        self.cart.product_list = []
         supposed_total_weight = 0
         for obj in objects:
             label, count, diff = obj["label"], obj["count"], obj["difference"]
