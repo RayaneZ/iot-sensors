@@ -79,6 +79,7 @@ class ShoppingCart:
             log("Recherche de produit dans le ref produit") 
             res = None
             for p in self.product_references:
+                log(f"Current product {p}")
                 if p['id'] == product_id:
                     log(f"Product trouvé")
                     res = p
