@@ -14,8 +14,8 @@ jobs:
       THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
       TB_USERNAME: ${{ secrets.TB_USERNAME }}
       TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
-      DEVICE_PROFILE_ID: "68c1c3f0-9905-11ef-af50-911365b0425f"
-      
+      DEVICE_ID: "5f680200-a2ca-11ef-8ecc-15f62f1e4cc0"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -57,10 +57,6 @@ jobs:
                   "version":"'"$TAG-$VERSION"'",
                   "tag":"'"$TAG"'",
                   "type":"SOFTWARE",
-                  "deviceProfileId": {
-                        "entityType":"DEVICE_PROFILE",
-                        "id":"'"$DEVICE_PROFILE_ID"'"
-                  },
                   "isURL":false,
                   "additionalInfo": {
                     "description":"Release '"$TAG"' (commit: '"$VERSION"')"
@@ -80,17 +76,26 @@ jobs:
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
 
-      - name: Deploy OTA Package to Devices
+      - name: Deploy OTA Package to Device
         env:
           TB_TOKEN: ${{ env.TB_TOKEN }}
-          DEVICE_PROFILE_ID: ${{ env.DEVICE_PROFILE_ID }}
+          DEVICE_ID: ${{ env.DEVICE_ID }}
           OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
         run: |
-          # Mettre à jour tous les appareils avec le package OTA
-          curl -s -X POST "$THINGSBOARD_URL/api/deviceProfile/$DEVICE_PROFILE_ID/otaPackage" \
+          # Mettre à jour l'appareil avec le package OTA
+          curl -s -X POST "$THINGSBOARD_URL/api/device" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{
-                  "otaPackageId": "'"$OTA_PACKAGE_ID"'",
-                  "version": "'"$TAG-$VERSION"'"
+                  "id": {
+                    "entityType": "DEVICE",
+                    "id": "'"$DEVICE_ID"'"
+                  },
+                  "softwareId": {
+                    "entityType": "OTA_PACKAGE",
+                    "id": "'"$OTA_PACKAGE_ID"'"
+                  },
+                  "additionalInfo": {
+                    "description": "Updated to version '"$TAG-$VERSION"'"
+                  }
                 }'
