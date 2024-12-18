@@ -12,9 +12,9 @@ MQTT_PORT = 1883
 
 # Table de correspondance entre labels YOLO et IDs produits
 YOLO_LABELS_TO_PRODUCT_ID = {
-    'banana': '1',
+    'banana': 1,
     'orange': '18818888',
-    'bottle': '3',
+    'bottle': 3,
 }
 
 # URLs Thingsboard
@@ -75,6 +75,7 @@ class ShoppingCart:
         log(f"HERRRRREEEEEE")
         log(f"Référentiel {self.product_references}")
         product_id = self.get_product_id_from_yolo_label(object_label)
+        log(f"Product_id table : {product_id}")
         if product_id:
             log("Recherche de produit dans le ref produit") 
             res = None
