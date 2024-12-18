@@ -101,7 +101,7 @@ jobs:
           DEVICE_ID: "5f680200-a2ca-11ef-8ecc-15f62f1e4cc0"
           VERSION: "7352d4a"
           TAG: "v11"
-          OTA_PACKAGE_ID: "073cef10-bd72-11ef-8ecc-15f62f1e4cc0"
+          OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
           TENANT_ID: "68523940-9905-11ef-af50-911365b0425f"
           CUSTOMER_ID: "d36e1d70-a2c9-11ef-8ecc-15f62f1e4cc0"
           DEVICE_NAME: "Panier 1"
