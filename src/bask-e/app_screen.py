@@ -225,26 +225,41 @@ class MQTTHandler:
     def handle_objects_detected(self, objects):
         global last_data_obj, last_data_scale
         last_data_obj = objects
-        
-        #self.cart.product_list = []
+
+        # Réinitialiser la liste des produits (si nécessaire, en fonction de la logique de votre application)
+        # self.cart.product_list = []
+
         for obj in objects:
-            label, count, diff = obj["label"], obj['count'], obj["difference"]
-            
-            # cas d'un ajout :
+            label, count, diff = obj["label"], obj["count"], obj["difference"]
+
+            # Vérifier le cas d'un ajout d'objet :
             if float(last_data_scale["difference"]) >= 0.0 and float(diff) >= 0.0:
-                #self.cart.product_list = []                                  
-                #product = self.cart.get_product_by_id(obj['label'])
-                #if product:
-                #    if self.cart.cart_error:
-                #        self.cart.cart_error = False
-                #    self.cart.product_list.append(product)
-                #else:
-                #    self.cart.cart_error = True
-                #    break
-                print(f"Added product : {label}")
+                # Chercher le produit correspondant dans le panier
+                product = self.cart.get_product_by_id(label)
+                if product:
+                    # Si un produit est trouvé, l'ajouter au panier
+                    if self.cart.cart_error:
+                        self.cart.cart_error = False  # Réinitialiser les erreurs de panier
+                    self.cart.product_list.append(product)
+                    print(f"Added product: {label}")
+                else:
+                    # Si le produit n'existe pas dans le catalogue, lever une erreur
+                    self.cart.cart_error = True
+                    print(f"Error: Product {label} not found in catalog.")
+                    break
+
+            # Vérifier le cas d'un retrait d'objet :
             elif float(last_data_scale["difference"]) < 0.0 and float(diff) < 0.0:
-                print(f"Removed product : {label}")
-                
+                product = self.cart.get_product_by_id(label)
+                if product and product in self.cart.product_list:
+                    self.cart.product_list.remove(product)
+                    print(f"Removed product: {label}")
+                else:
+                    print(f"Error: Product {label} not in cart.")
+
+        # Afficher le contenu du panier pour vérifier les mises à jour
+        print("Current cart contents:", [p.name for p in self.cart.product_list])
+        
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
