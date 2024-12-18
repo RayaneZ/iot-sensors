@@ -20,13 +20,15 @@ fi
 echo "Copie des fichiers dans le répertoire d'installation..."
 cp -r /tmp/ota_update/src/* "$INSTALL_DIR/"
 
-# Activer et démarrer chaque service
-echo "Desactivation et arret des services..."
+# Désactiver et arrêter chaque service sauf ota_update
+echo "Désactivation et arrêt des services..."
 for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
     service_name=$(basename "$service")
-    echo "Activation du service : $service_name"
-    systemctl stop "$service_name"
-    systemctl disable "$service_name"
+    if [ "$service_name" != "ota_update.service" ]; then
+        echo "Désactivation du service : $service_name"
+        systemctl stop "$service_name"
+        systemctl disable "$service_name"
+    fi
 done
 
 
