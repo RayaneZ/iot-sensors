@@ -6,7 +6,7 @@ import paho.mqtt.client as mqtt
 
 # ------------------ Configuration ------------------
 THINGSBOARD_BASE_URL = "https://iot-5etoiles.bnf.sigl.epita.fr"
-TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJrZXZpbi56aHVAZXBpdGEuZnIiLCJ1c2VySWQiOiIzY2EwZWJjMC1hMmM5LTExZWYtOGVjYy0xNWY2MmYxZTRjYzAiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6IjM5ZTI2NjhjLTc3ZGItNGQxYS1iMTA2LThmOWYzNWZlYWM2ZSIsImV4cCI6MTc1NTkzOTUzOCwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3MzQ0NjQ3MDIsImZpcnN0TmFtZSI6IktldmluIiwibGFzdE5hbWUiOiJaaHUiLCJlbmFibGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiNjg1MjM5NDAtOTkwNS0xMWVmLWFmNTAtOTExMzY1YjA0MjVmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.xO4Gpm61Lagu1NvuItaNnw8p-rwIlkAsMcw2GnDsicGwwWtZskVNEYzlFUs4xDNv8Gpgf1xIaPIc-Lh2jYco3w"
+TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJwaWVycmUubWVpc3NAZXBpdGEuZnIiLCJ1c2VySWQiOiI5MjFjOWU1MC05OTA1LTExZWYtYWY1MC05MTEzNjViMDQyNWYiLCJzY29wZXMiOlsiVEVOQU5UX0FETUlOIl0sInNlc3Npb25JZCI6IjQxMTM4MWFhLTE5NWYtNDZjMC04YWUzLWVkMzI0ODE0MDliOSIsImV4cCI6MTc1NTk2MDA3NSwiaXNzIjoidGhpbmdzYm9hcmQuaW8iLCJpYXQiOjE3MzQ0ODUyMzksImZpcnN0TmFtZSI6IlBpZXJyZSIsImxhc3ROYW1lIjoiTWVpc3MiLCJlbmFibGVkIjp0cnVlLCJpc1B1YmxpYyI6ZmFsc2UsInRlbmFudElkIjoiNjg1MjM5NDAtOTkwNS0xMWVmLWFmNTAtOTExMzY1YjA0MjVmIiwiY3VzdG9tZXJJZCI6IjEzODE0MDAwLTFkZDItMTFiMi04MDgwLTgwODA4MDgwODA4MCJ9.asv2tuEvU8MoUZODqDsu4p05kmNzHgqXA8awxGZoBFGEqDftjuonXCYdtvaY-vUexeeYqxlpTIh6J-KfxNY5Kg"
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
@@ -67,7 +67,7 @@ class ShoppingCart:
 
     def get_product_id_from_yolo_label(self, yolo_label):
         """Récupère l'ID du produit correspondant au label YOLO."""
-        log(f"Association de {yolo_label} avec {YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())}")
+        log(f"Association de {yolo_label} avec ref produit id : {YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())}")
         return YOLO_LABELS_TO_PRODUCT_ID.get(yolo_label.lower())
 
     def get_product_by_id(self, object_label):
@@ -80,7 +80,7 @@ class ShoppingCart:
 
     def update_cart(self):#, object_label, action):
         """Ajoute ou retire un produit dans le panier."""
-        log("Mis à jour du panier dans thingsboard inshallah")
+        log("Mis à jour du panier dans thingsboard")
         #product = self.get_product_by_id(object_label)
         #if product:
         #    if self.cart_error:
@@ -107,11 +107,30 @@ class ShoppingCart:
         log("Envoi des données à thingsboard")
         if len(self.product_list) == 0:
             return
+            
+        # Formatage de la liste des produits avec les bons types
+        formatted_products = []
+        for product in self.product_list:
+            formatted_product = {
+                "id": int(product['id']),
+                "name": product['name'],
+                "price": float(product['price']),
+                "weight": int(product['weight']),
+                "nutriScore": product['nutriScore'],
+                "category": product['category'],
+                "image": product['image'],
+                "stock": int(product['stock'])
+            }
+            formatted_products.append(formatted_product)
+            log(f"Produit formaté : {json.dumps(formatted_product, indent=2)}")
+            
         payload = {
-            "productList": [p for p in self.product_list],
-            "totalPrice": self.total_price,
-            "cartError": self.cart_error
+            "productList": formatted_products,
+            "totalPrice": float(self.total_price),
+            "cartError": bool(self.cart_error)
         }
+        log(f"Payload complet : {json.dumps(payload, indent=2)}")
+        
         headers = {"Authorization": f"Bearer {self.token}"}
         send_request(TELEMETRY_URL, "POST", headers, payload)
         log("Données du panier envoyées.")
@@ -190,7 +209,7 @@ class MQTTHandler:
         for product in self.cart.product_references:
             if abs(abs(delta) - product['weight']) <= 5:
                 action = 'add' if delta > 0 else 'remove'
-        self.cart.update_cart()#product['id'], action)        
+        self.cart.update_cart()    
 
     def handle_objects_detected(self, objects):
         log("Objets détectés :")
