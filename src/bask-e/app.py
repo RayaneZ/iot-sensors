@@ -97,7 +97,7 @@ class ShoppingCart:
 
     def update_cart(self):#, object_label, action):
         """Ajoute ou retire un produit dans le panier."""
-        log("Mis à jour du panier dans thingsboard")
+        log(f"Mis à jour du panier dans thingsboard, cart : {self.product_list}")
         #product = self.get_product_by_id(object_label)
         #if product:
         #    if self.cart_error:
