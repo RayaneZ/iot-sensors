@@ -116,7 +116,7 @@ class ShoppingCart:
                 "name": product['name'],
                 "price": float(product['price']),
                 "weight": int(product['weight']),
-                "nutriScore": product['nutriScore'],
+                "nutri-score": product['nutri-score'],
                 "category": product['category'],
                 "image": product['image'],
                 "stock": int(product['stock'])
@@ -130,7 +130,7 @@ class ShoppingCart:
             "cartError": bool(self.cart_error)
         }
         log(f"Payload complet : {json.dumps(payload, indent=2)}")
-        
+
         headers = {"Authorization": f"Bearer {self.token}"}
         send_request(TELEMETRY_URL, "POST", headers, payload)
         log("Données du panier envoyées.")
