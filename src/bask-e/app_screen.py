@@ -22,6 +22,10 @@ ATTRIBUTE_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/ASSET/495a4310-a8
 TELEMETRY_URL = f"{THINGSBOARD_BASE_URL}/api/v1/muOVFVkq5YWhvpGoSmJq/telemetry"
 PAYMENT_STATUS_URL = f"{THINGSBOARD_BASE_URL}/api/plugins/telemetry/DEVICE/5f680200-a2ca-11ef-8ecc-15f62f1e4cc0/attributes/SHARED_SCOPE"
 
+last_data_scale = {}
+last_data_obj = {}
+
+
 # ------------------ Fonctions Utilitaires ------------------
 def log(message, level="INFO"):
     """Affiche un message avec un niveau de priorité."""
@@ -215,30 +219,32 @@ class MQTTHandler:
             self.cart.send_payment_status(False)
 
     def handle_weight_change(self, data):
-        log("Changement de poids détecté :")
-        delta = data.get('delta', 0)
-        for product in self.cart.product_references:
-            if abs(abs(delta) - product['weight']) <= 5:
-                action = 'add' if delta > 0 else 'remove'
-        self.cart.update_cart()    
+        global last_data_scale
+        last_data_scale = data
 
     def handle_objects_detected(self, objects):
-        log("Objets détectés :")
-        self.cart.product_list = []
+        global last_data_obj, last_data_scale
+        last_data_obj = objects
+        
+        #self.cart.product_list = []
         for obj in objects:
-            log(f"- {obj['label']}")
-
-            product = self.cart.get_product_by_id(obj['label'])
-            log(f"Product detected : {product}")
-            if product:
-                if self.cart.cart_error:
-                    self.cart.cart_error = False
-                self.cart.product_list.append(product)
-            else:
-                self.cart.cart_error = True
-                break
-        self.cart.update_cart()
-        log(f"cart : {self.cart.product_list}")
+            label, count, diff = obj["label"], obj['count'], obj["difference"]
+            
+            # cas d'un ajout :
+            if float(last_data_scale["difference"]) >= 0.0 and float(diff) >= 0.0:
+                #self.cart.product_list = []                                  
+                #product = self.cart.get_product_by_id(obj['label'])
+                #if product:
+                #    if self.cart.cart_error:
+                #        self.cart.cart_error = False
+                #    self.cart.product_list.append(product)
+                #else:
+                #    self.cart.cart_error = True
+                #    break
+                print(f"Added product : {label}")
+            elif float(last_data_scale["difference"]) < 0.0 and float(diff) < 0.0:
+                print(f"Removed product : {label}")
+                
 
 # ------------------ Main ------------------
 if __name__ == "__main__":
