@@ -56,4 +56,6 @@ for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
     systemctl start "$service_name"
 done
 
+sudo rm /opt/bask-e/ota_package.zip
+
 echo "Installation terminée avec succès !"
