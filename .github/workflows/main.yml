@@ -14,8 +14,8 @@ jobs:
       THINGSBOARD_URL: ${{ secrets.THINGSBOARD_URL }}
       TB_USERNAME: ${{ secrets.TB_USERNAME }}
       TB_PASSWORD: ${{ secrets.TB_PASSWORD }}
-      DEVICE_ID: "5f680200-a2ca-11ef-8ecc-15f62f1e4cc0"
-
+      DEVICE_PROFILE_ID: "68c1c3f0-9905-11ef-af50-911365b0425f"
+      
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -57,8 +57,12 @@ jobs:
                   "version":"'"$TAG-$VERSION"'",
                   "tag":"'"$TAG"'",
                   "type":"SOFTWARE",
+                  "deviceProfileId":{
+                        "entityType":"DEVICE_PROFILE",
+                        "id":"'"$DEVICE_PROFILE_ID"'"
+                  },
                   "isURL":false,
-                  "additionalInfo": {
+                  "additionalInfo":{
                     "description":"Release '"$TAG"' (commit: '"$VERSION"')"
                   }
                 }')
@@ -71,12 +75,25 @@ jobs:
           TB_TOKEN: ${{ env.TB_TOKEN }}
           OTA_PACKAGE_ID: ${{ env.OTA_PACKAGE_ID }}
         run: |
+          # Télécharger le contenu OTA sur ThingsBoard
           curl -X POST "$THINGSBOARD_URL/api/otaPackage/$OTA_PACKAGE_ID?checksumAlgorithm=SHA256" \
             -H "X-Authorization: Bearer $TB_TOKEN" \
             -F "file=@ota_package.zip" \
             -H "Content-Type: multipart/form-data"
 
-      
+      - name: Configure Devices
+        env:
+          TB_TOKEN: ${{ env.TB_TOKEN }}
+        run: |
+          # Configurer les appareils avec la nouvelle version
+          response=$(curl -s -X POST "$THINGSBOARD_URL/api/deviceProfile/$DEVICE_PROFILE_ID/otaPackage" \
+            -H "X-Authorization: Bearer $TB_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+                  "otaPackageId": "'"$OTA_PACKAGE_ID"'",
+                  "version": "'"$TAG-$VERSION"'"
+                }')
+          echo $response
       - name: Deploy OTA Package to Device
         env:
           TB_TOKEN: ${{ env.TB_TOKEN }}
