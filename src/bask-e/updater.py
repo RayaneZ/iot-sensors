@@ -171,8 +171,8 @@ def dummy_upgrade(version_from, version_to):
         subprocess.run(["sudo", temp_dir + "/src/install.sh"], check=True)
 
         # Restart service to apply update
-        print("Restarting service...")
-        subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
+        #print("Restarting service...")
+        #subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
         
         print(f"Software updated successfully to version {version_to}")
         
