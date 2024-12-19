@@ -158,6 +158,7 @@ class ShoppingCart:
         """Envoie l'état de paiement."""
         headers = {"Authorization": f"Bearer {self.token}"}
         print("Paiement valeur" + is_paid)
+        is_paid = True
         payload = {"isPaid": is_paid}
         send_request(PAYMENT_STATUS_URL, "POST", headers, payload)
 
@@ -221,10 +222,10 @@ class MQTTHandler:
             current_timestamp = int(time.time())  
             self.cart.update_cart()
         else:
-            if current_timestamp - last_timestamp1 > 10:
-                self.cart.send_payment_status(False)
-                last_timestamp1 = current_timestamp
-            
+            #if current_timestamp - last_timestamp1 > 10:
+            self.cart.send_payment_status(False)
+            last_timestamp1 = current_timestamp
+        
 
     
     def handle_weight_change(self, data):
@@ -286,9 +287,9 @@ class MQTTHandler:
 
         log(f"Supposed total weight : {supposed_total_weight}, Total Weight : {total_weight}")
         acceptance_interval = 60
-        if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
-             log("Check du poids error")
-             self.cart.cart_error = True
+        #if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
+        #     log("Check du poids error")
+        #     self.cart.cart_error = True
         self.cart.update_cart()
         log(f"cart : {self.cart.product_list}")
 
