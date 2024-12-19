@@ -12,6 +12,7 @@ MQTT_PORT = 1883
 
 REFERENCIEL_UPDATE_RATE = 10 # secondes
 last_timestamp = 0
+last_timestamp1 = 0
 
 # Table de correspondance entre labels YOLO et IDs produits
 YOLO_LABELS_TO_PRODUCT_ID = {
@@ -156,9 +157,9 @@ class ShoppingCart:
     def send_payment_status(self, is_paid):
         """Envoie l'état de paiement."""
         headers = {"Authorization": f"Bearer {self.token}"}
+        print("Paiement valeur" + is_paid)
         payload = {"isPaid": is_paid}
         send_request(PAYMENT_STATUS_URL, "POST", headers, payload)
-        log(f"Statut de paiement : {'Payé' if is_paid else 'Non payé'}")
 
 # ------------------ Classe MQTTHandler ------------------
 class MQTTHandler:
@@ -211,14 +212,19 @@ class MQTTHandler:
     # ------------ Gestion des messages ------------
 
     def handle_nfc_message(self, data):
+        global last_timestamp1
         if self.cart.total_price > 0:
             log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
-            self.cart.total_price = 0
-            self.cart.send_payment_status(True)            
+            self.cart.send_payment_status(True)  
+            self.cart.total_price = 0       
+            current_timestamp = int(time.time())  
             self.cart.update_cart()
         else:
-            self.cart.send_payment_status(False)
+            if current_timestamp - last_timestamp1 > 10:
+                self.cart.send_payment_status(False)
+                last_timestamp1 = current_timestamp
+            
 
     
     def handle_weight_change(self, data):
