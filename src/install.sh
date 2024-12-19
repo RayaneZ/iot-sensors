@@ -53,9 +53,11 @@ systemctl daemon-reload
 echo "Activation et démarrage des services..."
 for service in "$INSTALL_DIR"/services/etc/systemd/system/*.service; do
     service_name=$(basename "$service")
-    echo "Activation du service : $service_name"
-    systemctl enable "$service_name"
-    systemctl start "$service_name"
+    if [ "$service_name" != "ota_update.service" ]; then
+        echo "Activation du service : $service_name"
+        systemctl enable "$service_name"
+        systemctl start "$service_name"
+    fi
 done
 
 sudo rm /opt/bask-e/ota_package.zip
