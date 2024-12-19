@@ -10,6 +10,8 @@ TOKEN = "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJwaWVycmUubWVpc3NAZXBpdGEuZnIiLCJ1c2VySW
 MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
+REFERENCIEL_UPDATE_RATE = 10 # secondes
+
 # Table de correspondance entre labels YOLO et IDs produits
 YOLO_LABELS_TO_PRODUCT_ID = {
     'banana': 1,
@@ -218,7 +220,9 @@ class MQTTHandler:
         else:
             self.cart.send_payment_status(False)
 
+    last_timestamp = 0
     def handle_weight_change(self, data):
+        global last_timestamp, REFERENCIEL_UPDATE_RATE
         # log("Changement de poids détecté :")
         # delta = data.get('delta', 0)
         # for product in self.cart.product_references:
@@ -227,6 +231,11 @@ class MQTTHandler:
         # self.cart.update_cart()
         global last_data_scale
         last_data_scale = data
+   
+        current_timestamp = int(time.time())
+        if current_timestamp - last_timestamp >= REFERENCIEL_UPDATE_RATE:
+            self.cart.load_product_references()
+            last_timestamp = current_timestamp
         log(f"Data : {data}")    
 
     def handle_objects_detected(self, objects):
@@ -270,10 +279,10 @@ class MQTTHandler:
             #         print(f"Error: Product {label} not in cart.")
 
         log(f"Supposed total weight : {supposed_total_weight}, Total Weight : {total_weight}")
-        # acceptance_interval = 35
-        # if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
-        #      log("Check du poids error")
-        #      self.cart.cart_error = True
+        acceptance_interval = 35
+        if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
+             log("Check du poids error")
+             self.cart.cart_error = True
         self.cart.update_cart()
         log(f"cart : {self.cart.product_list}")
 
