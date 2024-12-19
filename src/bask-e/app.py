@@ -11,6 +11,7 @@ MQTT_BROKER = "mqtt.eclipseprojects.io"
 MQTT_PORT = 1883
 
 REFERENCIEL_UPDATE_RATE = 10 # secondes
+last_timestamp = 0
 
 # Table de correspondance entre labels YOLO et IDs produits
 YOLO_LABELS_TO_PRODUCT_ID = {
@@ -219,7 +220,7 @@ class MQTTHandler:
         else:
             self.cart.send_payment_status(False)
 
-    last_timestamp = 0
+    
     def handle_weight_change(self, data):
         global last_timestamp, REFERENCIEL_UPDATE_RATE
         # log("Changement de poids détecté :")
