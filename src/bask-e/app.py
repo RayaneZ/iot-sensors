@@ -279,7 +279,7 @@ class MQTTHandler:
             #         print(f"Error: Product {label} not in cart.")
 
         log(f"Supposed total weight : {supposed_total_weight}, Total Weight : {total_weight}")
-        acceptance_interval = 35
+        acceptance_interval = 60
         if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
              log("Check du poids error")
              self.cart.cart_error = True
