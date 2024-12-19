@@ -162,7 +162,7 @@ class ShoppingCart:
 class MQTTHandler:
     def __init__(self, cart):
         self.cart = cart
-        self.client = mqtt.Client()
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         self.configure_client()
 
     def configure_client(self):
