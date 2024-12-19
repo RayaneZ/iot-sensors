@@ -157,7 +157,6 @@ class ShoppingCart:
     def send_payment_status(self, is_paid):
         """Envoie l'état de paiement."""
         headers = {"Authorization": f"Bearer {self.token}"}
-        print("Paiement valeur" + is_paid)
         is_paid = True
         payload = {"isPaid": is_paid}
         send_request(PAYMENT_STATUS_URL, "POST", headers, payload)
