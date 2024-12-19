@@ -211,7 +211,7 @@ class MQTTHandler:
 
     # ------------ Gestion des messages ------------
 
-    def handle_nfc_message(self, data)
+    def handle_nfc_message(self, data):
         if self.cart.total_price > 0:
             log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
