@@ -214,8 +214,8 @@ class MQTTHandler:
             log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
             self.cart.total_price = 0
-            self.cart.send_telemetry()
-            self.cart.send_payment_status(True)
+            self.cart.send_payment_status(True)            
+            self.cart.update_cart()
         else:
             self.cart.send_payment_status(False)
 
