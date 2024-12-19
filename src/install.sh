@@ -63,3 +63,7 @@ done
 sudo rm /opt/bask-e/ota_package.zip
 
 echo "Installation terminée avec succès !"
+
+exit 0
+
+
