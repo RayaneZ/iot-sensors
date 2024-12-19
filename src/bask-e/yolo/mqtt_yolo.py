@@ -127,7 +127,8 @@ def main():
         cap.release()
         if SHOW_UI:
             cv2.destroyAllWindows()
-        print("Programme terminé proprement.")
+        print("Programme terminé proprement, relancement...")
+        main()
 
 # ---------------- Exécution ----------------
 if __name__ == "__main__":

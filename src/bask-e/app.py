@@ -199,7 +199,7 @@ class MQTTHandler:
             data = json.loads(payload)
             if topic == "nfc/card/read":
                 self.handle_nfc_message(data)
-            elif topic == "scale/weight_change":
+            elif topic == "scale/weight":
                 self.handle_weight_change(data)
             elif topic == "camera/objects/detected":
                 self.handle_objects_detected(data)
