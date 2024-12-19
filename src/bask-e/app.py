@@ -211,19 +211,15 @@ class MQTTHandler:
 
     # ------------ Gestion des messages ------------
 
-    def handle_nfc_message(self, data):
-        global last_timestamp1
+    def handle_nfc_message(self, data)
         if self.cart.total_price > 0:
             log(f"Paiement de {self.cart.total_price}€ effectué.")
             self.cart.product_list = []
             self.cart.send_payment_status(True)  
-            self.cart.total_price = 0       
-            current_timestamp = int(time.time())  
+            self.cart.total_price = 0         
             self.cart.update_cart()
         else:
-            #if current_timestamp - last_timestamp1 > 10:
-            self.cart.send_payment_status(False)
-            last_timestamp1 = current_timestamp
+            self.cart.send_payment_status(True)
         
 
     
@@ -286,7 +282,7 @@ class MQTTHandler:
 
         log(f"Supposed total weight : {supposed_total_weight}, Total Weight : {total_weight}")
         acceptance_interval = 60
-        #if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight + acceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
+        #if total_weight < supposed_total_weight - acceptance_interval or total_weight > supposed_total_weight sacceptance_interval : # Si y'a un problème de poids par rapport au poids qu'on a dans le ref produit
         #     log("Check du poids error")
         #     self.cart.cart_error = True
         self.cart.update_cart()
