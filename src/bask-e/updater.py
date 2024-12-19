@@ -132,7 +132,7 @@ def get_current_software_info():
         with open(version_file, 'r') as file:
             version = file.read().strip()  # Lire la version
         return {
-            "current_sw_title": "ota_update.zip",
+            "current_sw_title": "ota_package.zip",
             "current_sw_version": version
         }
     except Exception as e:
@@ -171,8 +171,8 @@ def dummy_upgrade(version_from, version_to):
         subprocess.run(["sudo", temp_dir + "/src/install.sh"], check=True)
 
         # Restart service to apply update
-        print("Restarting service...")
-        subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
+        #print("Restarting service...")
+        #subprocess.run(["sudo", "systemctl", "restart", "ota_update.service"], check=True)
         
         print(f"Software updated successfully to version {version_to}")
         
