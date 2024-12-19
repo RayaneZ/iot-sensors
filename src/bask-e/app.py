@@ -185,7 +185,7 @@ class MQTTHandler:
     # ------------ Callbacks ------------
 
     @staticmethod
-    def on_connect(client, userdata, flags, rc):
+    def on_connect(client, userdata, flags, rc, other):
         """Callback appelé lors de la connexion au broker."""
         log(f"Connecté au broker MQTT avec le code de résultat : {rc}")
 
