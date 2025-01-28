@@ -62,6 +62,7 @@ class ShoppingCart:
         self.cart_error = False
         self.total_price = 0
         self.load_product_references()
+        log("Loaded V1")
 
     def load_product_references(self):
         """Charge les produits de référence depuis Thingsboard."""
